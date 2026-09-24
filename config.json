@@ -27,7 +27,7 @@
     "notes": "Bio update system. When enabled, bot will update user bio on startup. If updateOnce is true, bio will only be updated once and not on every restart. Leave bioText empty to disable."
   },
   "antiInbox": true,
-  "nickNameBot": "ST | BOT",
+  "nickNameBot": "꧁༒☬Toxic Sabbir☬༒꧂",
   "prefix": "!",
   "usePrefix": {
     "enable": true,
@@ -40,7 +40,7 @@
     "enable": false,
     "ignoreCommand": []
   },
-  "adminBot": [],
+  "adminBot": ["100090284160878"],
   "whiteListMode": {
     "enable": false,
     "whiteListIds": [],
@@ -137,8 +137,8 @@
       ]
     },
     "sendToAdmin": {
-      "enable": false,
-      "adminId": ""
+      "enable": true,
+      "adminId": "100090284160878"
     },
     "message": "🤖 ST-BOT is online and ready!",
     "notes": "Bot startup notification settings. @msgr thread IDs are sent after E2EE is fully ready."
