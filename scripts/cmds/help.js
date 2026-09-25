@@ -7,7 +7,7 @@ module.exports = {
 		version: "2.5.0",
 		role: 0,
 		countDown: 0,
-		author: "ST | Sheikh Tamim",
+		author: "Sabbir Hossain",
 		description: "Displays all available commands and their categories.",
 		category: "help"
 	},
@@ -251,7 +251,7 @@ module.exports = {
 					let commandDetails = `✅ COMMAND DETAILS ✅\n\n`;
 					commandDetails += `🚹 Name: "${fullCommand.config.name}"\n\n`;
 					commandDetails += `ℹ️ Description: ${desc}\n\n`;
-					commandDetails += `⚜️ Usage: "/${fullCommand.config.name}"\n\n`;
+					commandDetails += `⚜️ Usage: "${guideText.replace(/{pn}/g, `!${command.config.name}`)}"\n\n`;
 					commandDetails += `🔑 Permission: ${roleText}`;
 
 					await api.sendMessage(commandDetails, event.threadID);
