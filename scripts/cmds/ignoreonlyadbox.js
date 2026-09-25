@@ -10,7 +10,7 @@ module.exports = {
 			vi: "Bỏ qua lệnh trong adminonly (khi bật adminonly, các lệnh được thêm từ lệnh này người dùng vẫn có thể sử dụng)",
 			en: "Ignore command in adminonly (when turn on adminonly, user can use command added from this command)"
 		},
-		category: "owner",
+		category: "ADMIN & BOT CONTROL",
 		guide: {
 			vi: "   {pn} add <commandName>: Thêm lệnh vào danh sách bỏ qua"
 				+ "\n   {pn} del <commandName>: Xóa lệnh khỏi danh sách bỏ qua"
