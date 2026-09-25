@@ -63,7 +63,7 @@ module.exports = {
 			vi: "Khởi động lại bot",
 			en: "Restart bot"
 		},
-		category: "Owner",
+		category: "ADMIN & BOT CONTROL",
 		guide: {
 			vi: "   {pn}: Khởi động lại bot",
 			en: "   {pn}: Restart bot"
