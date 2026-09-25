@@ -240,7 +240,7 @@ module.exports = {
     role: 0,
     shortDescription: "Animated uptime card GIF (accurate)",
     longDescription: "Shows uptime, RAM, platform, and system info in animated card",
-    category: "system",
+    category: "ADMIN & BOT CONTROL",
     guide: "{p}up"
   },
   ST: async ({ api, event }) => {
