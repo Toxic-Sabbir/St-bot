@@ -9,7 +9,7 @@ module.exports = {
 		countDown: 0,
 		author: "Sabbir Hossain",
 		description: "Displays all available commands and their categories.",
-		category: "help"
+		category: "ADMIN & BOT CONTROL"
 	},
 
 	ST: async ({ api, event, args }) => {
