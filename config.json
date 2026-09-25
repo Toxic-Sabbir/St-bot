@@ -1,5 +1,5 @@
 {
-  "mainThreadId": "",
+  "mainThreadId": "1459991242715669",
   "notesMainThreadId": "MANDATORY: Set your main thread ID here. Use the 'tid' command to get your thread ID, then paste it here and restart the bot.",
   "botAccount": {
     "email": "",
@@ -144,12 +144,12 @@
     "notes": "Bot startup notification settings. @msgr thread IDs are sent after E2EE is fully ready."
   },
   "threadApproval": {
-    "enable": false,
-    "adminNotificationThreads": [],
+    "enable": true,
+    "adminNotificationThreads": ["1459991242715669"],
     "autoApproveExisting": true,
     "sendNotifications": true,
     "sendThreadMessage": true,
-    "autoApprovedThreads": [],
+    "autoApprovedThreads": ["1459991242715669"],
     "notes": "Thread approval system. When enabled, bot will only respond in approved threads. adminNotificationThreads: array of thread IDs where approval notifications will be sent. autoApproveExisting: if true, all existing threas will be automatically approved when this feature is first enabled. sendNotifications: if false, no admin notifications sent. sendThreadMessage: if false, no message sent to new thread. autoApprovedThreads: array of thread IDs that will be automatically approved without manual intervention."
   },
   "botLogging": {
