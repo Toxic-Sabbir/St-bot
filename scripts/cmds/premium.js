@@ -7,7 +7,7 @@ module.exports = {
 		countDown: 5,
 		role: 0,
 		description: "Premium system management - request for all users, manage for admins",
-		category: "system",
+		category: "ADMIN & BOT CONTROL",
 		guide: {
 			en: "   {pn} request [message]: Request premium access (available to all)"
 				+ "\n   {pn} add <uid/@mention>: Add user to premium (admin only)"
