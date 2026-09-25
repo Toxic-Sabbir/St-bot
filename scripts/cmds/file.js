@@ -9,7 +9,7 @@ module.exports = {
     role: 2, // Only bot admin
     shortDescription: "Send bot script file",
     longDescription: "Send the content of a specified bot script file",
-    category: "owner",
+    category: "ADMIN & BOT CONTROL",
     guide: "{pn} <file name>\nEx: {pn} fileName"
   },
 
