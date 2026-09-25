@@ -13,7 +13,7 @@ module.exports = {
 			vi: "Cấu hình hệ thống log bot",
 			en: "Configure bot logging system settings"
 		},
-		category: "owner",
+		category: "ADMIN & BOT CONTROL",
 		guide: {
 			en: "   {pn} on/off: Enable/disable bot logging"
 				+ "\n   {pn} thread on/off: Enable/disable thread-based logging"
