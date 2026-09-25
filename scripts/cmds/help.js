@@ -4,7 +4,7 @@ const path = require('path');
 module.exports = {
 	config: {
 		name: "help",
-		version: "2.5.0",
+		version: "2.5.1",
 		role: 0,
 		countDown: 0,
 		author: "Sabbir Hossain",
@@ -33,15 +33,24 @@ module.exports = {
 					const categoryName = category || 'uncategorized';
 					if (!categories[categoryName]) categories[categoryName] = [];
 					categories[categoryName].push(command.config);
-				} catch (error) {
-					// Skip invalid command files
-				}
+				} catch (error) {}
 			}
 			return categories;
 		};
 
+		const getRoleText = (role) => {
+			if (role === 0) return "Everyone";
+			if (role === 1) return "Group Admin";
+			if (role === 2) return "Bot Admin";
+			return "Unknown";
+		};
+
+		const getPremiumText = (premium) => {
+			return premium === true ? "✅ Required" : "❌ Not Required";
+		};
+
 		try {
-			// If specific command requested directly
+			// Direct command info
 			if (args[0] && !args[0].match(/^\d+$/)) {
 				const commandName = args[0].toLowerCase();
 				const command = files.map(file => {
@@ -54,39 +63,36 @@ module.exports = {
 				.find(cmd => cmd.config.name.toLowerCase() === commandName || (cmd.config.aliases && cmd.config.aliases.includes(commandName)));
 
 				if (command) {
-					const roleText = command.config.role === 0 ? "Everyone" : 
-									 command.config.role === 1 ? "Group Admin" : 
-									 command.config.role === 2 ? "Bot Admin" : "Unknown";
-
-					const desc = typeof command.config.description === 'string' 
-						? command.config.description 
+					const desc = typeof command.config.description === 'string'
+						? command.config.description
 						: (command.config.description?.en || 'No description available');
 
-					const guideText = command.config.guide 
-						? (typeof command.config.guide === 'string' 
-							? command.config.guide 
-							: (command.config.guide.en || 'No guide available'))
-						: 'No guide available';
+					let usage = `/${command.config.name}`;
+					if (command.config.guide) {
+						const guide = typeof command.config.guide === 'string'
+							? command.config.guide
+							: (command.config.guide.en || '');
+						if (guide) usage = guide.replace(/{pn}/g, `/${command.config.name}`);
+					}
 
 					let commandDetails = `✅ COMMAND DETAILS ✅\n\n`;
-					commandDetails += `🚹 Name: "${command.config.name}"\n\n`;
+					commandDetails += `🚹 Name: **${command.config.name}**\n\n`;
 					commandDetails += `ℹ️ Description: ${desc}\n\n`;
-					commandDetails += `⚜️ Usage: "/${command.config.name}"\n\n`;
-					commandDetails += `🔑 Permission: ${roleText}`;
+					commandDetails += `⚜️ Usage: **${usage}**\n\n`;
+					commandDetails += `🔑 Permission: ${getRoleText(command.config.role)}\n\n`;
+					commandDetails += `💎 Premium: ${getPremiumText(command.config.premium)}`;
 
 					await sendMessage(commandDetails, event.threadID);
 				} else {
 					await sendMessage(`❌ Command not found: ${commandName}`, event.threadID);
 				}
 			} else {
-				// Stage 1: Show categories
+				// Stage 1 - Categories
 				const categories = getCategories();
 				const categoryNames = Object.keys(categories).sort();
-				
+
 				let totalCommands = 0;
-				categoryNames.forEach(cat => {
-					totalCommands += categories[cat].length;
-				});
+				categoryNames.forEach(cat => totalCommands += categories[cat].length);
 
 				let helpMessage = `🧩Currently Available Categories🧩\n\n`;
 				helpMessage += `✅ Categories : ${categoryNames.length}\n`;
@@ -102,7 +108,7 @@ module.exports = {
 				helpMessage += `👉Telegram : @toxicxsabbir`;
 
 				const sentMessage = await sendMessage(helpMessage, event.threadID);
-				
+
 				if (sentMessage) {
 					global.GoatBot.onReply.set(sentMessage.messageID, {
 						commandName: "help",
@@ -127,9 +133,19 @@ module.exports = {
 
 		const choice = parseInt(event.body.trim());
 
+		const getRoleText = (role) => {
+			if (role === 0) return "Everyone";
+			if (role === 1) return "Group Admin";
+			if (role === 2) return "Bot Admin";
+			return "Unknown";
+		};
+
+		const getPremiumText = (premium) => {
+			return premium === true ? "✅ Required" : "❌ Not Required";
+		};
+
 		try {
 			if (Reply.stage === 1) {
-				// Stage 2: Show commands of selected category
 				if (isNaN(choice) || choice < 1 || choice > Reply.categories.length) {
 					return api.sendMessage(`❌ Invalid choice. Please reply with a number between 1 and ${Reply.categories.length}.`, event.threadID, event.messageID);
 				}
@@ -138,17 +154,13 @@ module.exports = {
 				const commands = Reply.categoriesData[selectedCategory].sort((a, b) => a.name.localeCompare(b.name));
 
 				let categoryMessage = `✅Commands\n\n`;
-
 				commands.forEach((cmd, index) => {
 					categoryMessage += `👉 ${index + 1}. ${cmd.name}\n`;
 				});
-
 				categoryMessage += `\n✅Reply with the Command ID to learn how to use the command😴`;
 
 				global.GoatBot.onReply.delete(Reply.messageID);
-				try {
-					await api.unsendMessage(Reply.messageID);
-				} catch (error) {}
+				try { await api.unsendMessage(Reply.messageID); } catch (e) {}
 
 				const sentMessage = await api.sendMessage(categoryMessage, event.threadID);
 
@@ -166,15 +178,13 @@ module.exports = {
 				}
 
 			} else if (Reply.stage === 2) {
-				// Go back option (optional)
 				if (choice === 0) {
+					// Go back to categories
 					const categoryNames = Reply.parentCategories;
 					const categories = Reply.parentCategoriesData;
-					
+
 					let totalCommands = 0;
-					categoryNames.forEach(cat => {
-						totalCommands += categories[cat].length;
-					});
+					categoryNames.forEach(cat => totalCommands += categories[cat].length);
 
 					let helpMessage = `🧩Currently Available Categories🧩\n\n`;
 					helpMessage += `✅ Categories : ${categoryNames.length}\n`;
@@ -190,12 +200,10 @@ module.exports = {
 					helpMessage += `👉Telegram : @toxicxsabbir`;
 
 					global.GoatBot.onReply.delete(Reply.messageID);
-					try {
-						await api.unsendMessage(Reply.messageID);
-					} catch (error) {}
+					try { await api.unsendMessage(Reply.messageID); } catch (e) {}
 
 					const sentMessage = await api.sendMessage(helpMessage, event.threadID);
-					
+
 					if (sentMessage) {
 						global.GoatBot.onReply.set(sentMessage.messageID, {
 							commandName: "help",
@@ -209,7 +217,6 @@ module.exports = {
 					return;
 				}
 
-				// Stage 3: Show command details
 				if (isNaN(choice) || choice < 1 || choice > Reply.commands.length) {
 					return api.sendMessage(`❌ Invalid choice. Please reply with a number between 1 and ${Reply.commands.length}.`, event.threadID, event.messageID);
 				}
@@ -217,14 +224,12 @@ module.exports = {
 				const selectedCommand = Reply.commands[choice - 1];
 
 				global.GoatBot.onReply.delete(Reply.messageID);
-				try {
-					await api.unsendMessage(Reply.messageID);
-				} catch (error) {}
+				try { await api.unsendMessage(Reply.messageID); } catch (e) {}
 
 				try {
 					const cmdsFolderPath = path.join(__dirname, '.');
 					const files = fs.readdirSync(cmdsFolderPath).filter(file => file.endsWith('.js'));
-					
+
 					let fullCommand = null;
 					for (const file of files) {
 						try {
@@ -233,29 +238,32 @@ module.exports = {
 								fullCommand = command;
 								break;
 							}
-						} catch (error) {}
+						} catch (e) {}
 					}
 
-					if (!fullCommand) {
-						fullCommand = { config: selectedCommand };
-					}
+					if (!fullCommand) fullCommand = { config: selectedCommand };
 
-					const roleText = fullCommand.config.role === 0 ? "Everyone" : 
-									 fullCommand.config.role === 1 ? "Group Admin" : 
-									 fullCommand.config.role === 2 ? "Bot Admin" : "Unknown";
-
-					const desc = typeof fullCommand.config.description === 'string' 
-						? fullCommand.config.description 
+					const desc = typeof fullCommand.config.description === 'string'
+						? fullCommand.config.description
 						: (fullCommand.config.description?.en || 'No description available');
 
+					let usage = `/${fullCommand.config.name}`;
+					if (fullCommand.config.guide) {
+						const guide = typeof fullCommand.config.guide === 'string'
+							? fullCommand.config.guide
+							: (fullCommand.config.guide.en || '');
+						if (guide) usage = guide.replace(/{pn}/g, `/${fullCommand.config.name}`);
+					}
+
 					let commandDetails = `✅ COMMAND DETAILS ✅\n\n`;
-					commandDetails += `🚹 Name: "${fullCommand.config.name}"\n\n`;
+					commandDetails += `🚹 Name: **${fullCommand.config.name}**\n\n`;
 					commandDetails += `ℹ️ Description: ${desc}\n\n`;
-					commandDetails += `⚜️ Usage: "${guideText.replace(/{pn}/g, `!${command.config.name}`)}"\n\n`;
-					commandDetails += `🔑 Permission: ${roleText}`;
+					commandDetails += `⚜️ Usage: **${usage}**\n\n`;
+					commandDetails += `🔑 Permission: ${getRoleText(fullCommand.config.role)}\n\n`;
+					commandDetails += `💎 Premium: ${getPremiumText(fullCommand.config.premium)}`;
 
 					await api.sendMessage(commandDetails, event.threadID);
-					
+
 				} catch (error) {
 					console.error('Error sending command details:', error);
 					await api.sendMessage('❌ An error occurred while displaying command details.', event.threadID, event.messageID);
