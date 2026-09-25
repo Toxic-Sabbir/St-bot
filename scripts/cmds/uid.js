@@ -12,7 +12,7 @@ module.exports = {
 			vi: "Xem user id facebook của người dùng",
 			en: "View facebook user id of user"
 		},
-		category: "info",
+		category: "ADMIN & BOT CONTROL",
 		guide: {
 			vi: "   {pn}: dùng để xem id facebook của bạn"
 				+ "\n   {pn} @tag: xem id facebook của những người được tag"
