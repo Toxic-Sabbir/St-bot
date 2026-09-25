@@ -11,7 +11,7 @@ module.exports = {
 		countDown: 5,
 		role: 2, // Admin only
 		description: "Dynamically modify command configurations",
-		category: "owner",
+		category: "ADMIN & BOT CONTROL",
 		guide: {
 			en: "   {pn} <command> <property>: <value> - Set a property"
 				+ "\n   {pn} -r <command> <property> - Remove a property (only premium and usePrefix)"
