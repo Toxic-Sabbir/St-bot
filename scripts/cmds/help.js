@@ -1,11 +1,10 @@
-
 const fs = require('fs');
 const path = require('path');
 
 module.exports = {
 	config: {
 		name: "help",
-		version: "2.4.74",
+		version: "2.5.0",
 		role: 0,
 		countDown: 0,
 		author: "ST | Sheikh Tamim",
@@ -55,82 +54,55 @@ module.exports = {
 				.find(cmd => cmd.config.name.toLowerCase() === commandName || (cmd.config.aliases && cmd.config.aliases.includes(commandName)));
 
 				if (command) {
-					// Display command details
-					let commandDetails = `╭─────────────────────◊\n`;
-					commandDetails += `│  🔹 COMMAND DETAILS\n`;
-					commandDetails += `├─────────────────────◊\n`;
-					commandDetails += `│ ⚡ Name: ${command.config.name}\n`;
-					commandDetails += `│ 📝 Version: ${command.config.version || 'N/A'}\n`;
-					commandDetails += `│ 👤 Author: ${command.config.author || 'Unknown'}\n`;
-					commandDetails += `│ 🔐 Role: ${command.config.role !== undefined ? command.config.role : 'N/A'}\n`;
-					commandDetails += `│ 📂 Category: ${command.config.category || 'uncategorized'}\n`;
-					commandDetails += `│ 💎 Premium: ${command.config.premium == true ? '✅ Required' : '❌ Not Required'}\n`;
-					commandDetails += `│ 🔧 Use Prefix: ${command.config.usePrefix !== undefined ? (command.config.usePrefix ? '✅ Required' : '❌ Not Required') : '⚙️ Global Setting'}\n`;
+					const roleText = command.config.role === 0 ? "Everyone" : 
+									 command.config.role === 1 ? "Group Admin" : 
+									 command.config.role === 2 ? "Bot Admin" : "Unknown";
 
-					if (command.config.aliases && command.config.aliases.length > 0) {
-						commandDetails += `│ 🔄 Aliases: ${command.config.aliases.join(', ')}\n`;
-					}
+					const desc = typeof command.config.description === 'string' 
+						? command.config.description 
+						: (command.config.description?.en || 'No description available');
 
-					if (command.config.countDown !== undefined) {
-						commandDetails += `│ ⏱️ Cooldown: ${command.config.countDown}s\n`;
-					}
+					const guideText = command.config.guide 
+						? (typeof command.config.guide === 'string' 
+							? command.config.guide 
+							: (command.config.guide.en || 'No guide available'))
+						: 'No guide available';
 
-					// Display unsend configuration if present
-					if (command.config.unsend !== undefined && command.config.unsend !== null) {
-						let unsendDisplay;
-						if (typeof command.config.unsend === 'number') {
-							unsendDisplay = `${command.config.unsend}s`;
-						} else if (typeof command.config.unsend === 'string') {
-							unsendDisplay = command.config.unsend;
-						}
-						commandDetails += `│ 🗑️ Auto-unsend: ${unsendDisplay}\n`;
-					}
-
-					commandDetails += `├─────────────────────◊\n`;
-
-					// Description
-					if (command.config.description) {
-						const desc = typeof command.config.description === 'string' ? command.config.description : command.config.description.en || 'No description available';
-						commandDetails += `│ 📋 Description:\n│ ${desc}\n├─────────────────────◊\n`;
-					}
-
-					// Guide/Usage
-					const guideText = command.config.guide ? (typeof command.config.guide === 'string' ? command.config.guide : command.config.guide.en || 'No guide available') : 'No guide available';
-					commandDetails += `│ 📚 Usage Guide:\n│ ${guideText.replace(/{pn}/g, `!${command.config.name}`)}\n`;
-
-					commandDetails += `╰─────────────────────◊\n`;
-					commandDetails += `     💫 ST_BOT Command Info`;
+					let commandDetails = `✅ COMMAND DETAILS ✅\n\n`;
+					commandDetails += `🚹 Name: "${command.config.name}"\n\n`;
+					commandDetails += `ℹ️ Description: ${desc}\n\n`;
+					commandDetails += `⚜️ Usage: "/${command.config.name}"\n\n`;
+					commandDetails += `🔑 Permission: ${roleText}`;
 
 					await sendMessage(commandDetails, event.threadID);
 				} else {
 					await sendMessage(`❌ Command not found: ${commandName}`, event.threadID);
 				}
 			} else {
-				// Stage 1: Show categories with serial numbers
+				// Stage 1: Show categories
 				const categories = getCategories();
 				const categoryNames = Object.keys(categories).sort();
 				
-				let helpMessage = '╭─────────────────────◊\n';
-				helpMessage += '│     📋 COMMAND CATEGORIES\n';
-				helpMessage += '├─────────────────────◊\n';
-				
-				categoryNames.forEach((category, index) => {
-					const commandCount = categories[category].length;
-					helpMessage += `│ ${index + 1}. ${category.charAt(0).toUpperCase() + category.slice(1)}\n`;
-					helpMessage += `│    └─ ${commandCount} commands\n`;
+				let totalCommands = 0;
+				categoryNames.forEach(cat => {
+					totalCommands += categories[cat].length;
 				});
-				
-				helpMessage += '├─────────────────────◊\n';
-				helpMessage += '│ 💡 Reply with category number\n';
-				helpMessage += '│    to see commands\n';
-				helpMessage += '│ 💡 Type !help <cmdname>\n';
-				helpMessage += '│    for direct command info\n';
-				helpMessage += '╰─────────────────────◊\n';
-				helpMessage += '        💫 ST_BOT Help Menu';
+
+				let helpMessage = `🧩Currently Available Categories🧩\n\n`;
+				helpMessage += `✅ Categories : ${categoryNames.length}\n`;
+				helpMessage += `✅ Commands : ${totalCommands}\n\n`;
+				helpMessage += `👉Category List :\n\n`;
+
+				categoryNames.forEach((category, index) => {
+					helpMessage += `🟩 ${index + 1}. ${category.toUpperCase()}\n`;
+				});
+
+				helpMessage += `\n👉Reply with the Category ID to view the command list👈\n\n`;
+				helpMessage += `✅ For More Contact Me : m.me/trader.sabbir.x1\n`;
+				helpMessage += `👉Telegram : @toxicxsabbir`;
 
 				const sentMessage = await sendMessage(helpMessage, event.threadID);
 				
-				// Set up onReply for category selection (Stage 1)
 				if (sentMessage) {
 					global.GoatBot.onReply.set(sentMessage.messageID, {
 						commandName: "help",
@@ -157,7 +129,7 @@ module.exports = {
 
 		try {
 			if (Reply.stage === 1) {
-				// Stage 2: User selected a category - show commands with serial numbers
+				// Stage 2: Show commands of selected category
 				if (isNaN(choice) || choice < 1 || choice > Reply.categories.length) {
 					return api.sendMessage(`❌ Invalid choice. Please reply with a number between 1 and ${Reply.categories.length}.`, event.threadID, event.messageID);
 				}
@@ -165,32 +137,21 @@ module.exports = {
 				const selectedCategory = Reply.categories[choice - 1];
 				const commands = Reply.categoriesData[selectedCategory].sort((a, b) => a.name.localeCompare(b.name));
 
-				let categoryMessage = `╭─────────────────────◊\n`;
-				categoryMessage += `│  📂 ${selectedCategory.toUpperCase()} COMMANDS\n`;
-				categoryMessage += `├─────────────────────◊\n`;
+				let categoryMessage = `✅Commands\n\n`;
 
 				commands.forEach((cmd, index) => {
-					categoryMessage += `│ ${index + 1}. ${cmd.name}\n`;
+					categoryMessage += `👉 ${index + 1}. ${cmd.name}\n`;
 				});
 
-				categoryMessage += `├─────────────────────◊\n`;
-				categoryMessage += `│ 💡 Reply with command number\n`;
-				categoryMessage += `│    for detailed info\n`;
-				categoryMessage += `│ 💡 Type 0 to go back\n`;
-				categoryMessage += `╰─────────────────────◊\n`;
-				categoryMessage += `   Total: ${commands.length} commands`;
+				categoryMessage += `\n✅Reply with the Command ID to learn how to use the command😴`;
 
-				// Delete old onReply data and unsend previous message
 				global.GoatBot.onReply.delete(Reply.messageID);
 				try {
 					await api.unsendMessage(Reply.messageID);
-				} catch (error) {
-					console.error('Error unsending message:', error);
-				}
+				} catch (error) {}
 
 				const sentMessage = await api.sendMessage(categoryMessage, event.threadID);
 
-				// Set up onReply for command selection (Stage 2)
 				if (sentMessage) {
 					global.GoatBot.onReply.set(sentMessage.messageID, {
 						commandName: "help",
@@ -205,40 +166,36 @@ module.exports = {
 				}
 
 			} else if (Reply.stage === 2) {
-				// Check if user wants to go back to categories
+				// Go back option (optional)
 				if (choice === 0) {
 					const categoryNames = Reply.parentCategories;
 					const categories = Reply.parentCategoriesData;
 					
-					let helpMessage = '╭─────────────────────◊\n';
-					helpMessage += '│     📋 COMMAND CATEGORIES\n';
-					helpMessage += '├─────────────────────◊\n';
-					
-					categoryNames.forEach((category, index) => {
-						const commandCount = categories[category].length;
-						helpMessage += `│ ${index + 1}. ${category.charAt(0).toUpperCase() + category.slice(1)}\n`;
-						helpMessage += `│    └─ ${commandCount} commands\n`;
+					let totalCommands = 0;
+					categoryNames.forEach(cat => {
+						totalCommands += categories[cat].length;
 					});
-					
-					helpMessage += '├─────────────────────◊\n';
-					helpMessage += '│ 💡 Reply with category number\n';
-					helpMessage += '│    to see commands\n';
-					helpMessage += '│ 💡 Type !help <cmdname>\n';
-					helpMessage += '│    for direct command info\n';
-					helpMessage += '╰─────────────────────◊\n';
-					helpMessage += '        💫 ST_BOT Help Menu';
 
-					// Delete old onReply data and unsend previous message
+					let helpMessage = `🧩Currently Available Categories🧩\n\n`;
+					helpMessage += `✅ Categories : ${categoryNames.length}\n`;
+					helpMessage += `✅ Commands : ${totalCommands}\n\n`;
+					helpMessage += `👉Category List :\n\n`;
+
+					categoryNames.forEach((category, index) => {
+						helpMessage += `🟩 ${index + 1}. ${category.toUpperCase()}\n`;
+					});
+
+					helpMessage += `\n👉Reply with the Category ID to view the command list👈\n\n`;
+					helpMessage += `✅ For More Contact Me : m.me/trader.sabbir.x1\n`;
+					helpMessage += `👉Telegram : @toxicxsabbir`;
+
 					global.GoatBot.onReply.delete(Reply.messageID);
 					try {
 						await api.unsendMessage(Reply.messageID);
-					} catch (error) {
-						console.error('Error unsending message:', error);
-					}
+					} catch (error) {}
 
 					const sentMessage = await api.sendMessage(helpMessage, event.threadID);
 					
-					// Set up onReply for category selection (back to Stage 1)
 					if (sentMessage) {
 						global.GoatBot.onReply.set(sentMessage.messageID, {
 							commandName: "help",
@@ -252,23 +209,19 @@ module.exports = {
 					return;
 				}
 
-				// Stage 3: User selected a specific command - show full details
+				// Stage 3: Show command details
 				if (isNaN(choice) || choice < 1 || choice > Reply.commands.length) {
-					return api.sendMessage(`❌ Invalid choice. Please reply with a number between 1 and ${Reply.commands.length}, or 0 to go back.`, event.threadID, event.messageID);
+					return api.sendMessage(`❌ Invalid choice. Please reply with a number between 1 and ${Reply.commands.length}.`, event.threadID, event.messageID);
 				}
 
 				const selectedCommand = Reply.commands[choice - 1];
 
-				// Delete old onReply data and unsend previous message
 				global.GoatBot.onReply.delete(Reply.messageID);
 				try {
 					await api.unsendMessage(Reply.messageID);
-				} catch (error) {
-					console.error('Error unsending message:', error);
-				}
+				} catch (error) {}
 
 				try {
-					// Load the actual command file to get complete details
 					const cmdsFolderPath = path.join(__dirname, '.');
 					const files = fs.readdirSync(cmdsFolderPath).filter(file => file.endsWith('.js'));
 					
@@ -280,65 +233,27 @@ module.exports = {
 								fullCommand = command;
 								break;
 							}
-						} catch (error) {
-							// Skip invalid command files
-						}
+						} catch (error) {}
 					}
 
 					if (!fullCommand) {
 						fullCommand = { config: selectedCommand };
 					}
 
-					let commandDetails = `╭─────────────────────◊\n`;
-					commandDetails += `│  🔹 COMMAND DETAILS\n`;
-					commandDetails += `├─────────────────────◊\n`;
-					commandDetails += `│ ⚡ Name: ${fullCommand.config.name}\n`;
-					commandDetails += `│ 📝 Version: ${fullCommand.config.version || 'N/A'}\n`;
-					commandDetails += `│ 👤 Author: ${fullCommand.config.author || 'Unknown'}\n`;
-					commandDetails += `│ 🔐 Role: ${fullCommand.config.role !== undefined ? fullCommand.config.role : 'N/A'}\n`;
-					commandDetails += `│ 📂 Category: ${fullCommand.config.category || 'uncategorized'}\n`;
-					commandDetails += `│ 💎 Premium: ${fullCommand.config.premium == true ? '✅ Required' : '❌ Not Required'}\n`;
-					commandDetails += `│ 🔧 Use Prefix: ${fullCommand.config.usePrefix !== undefined ? (fullCommand.config.usePrefix ? '✅ Required' : '❌ Not Required') : '⚙️ Global Setting'}\n`;
+					const roleText = fullCommand.config.role === 0 ? "Everyone" : 
+									 fullCommand.config.role === 1 ? "Group Admin" : 
+									 fullCommand.config.role === 2 ? "Bot Admin" : "Unknown";
 
-					if (fullCommand.config.aliases && fullCommand.config.aliases.length > 0) {
-						commandDetails += `│ 🔄 Aliases: ${fullCommand.config.aliases.join(', ')}\n`;
-					}
+					const desc = typeof fullCommand.config.description === 'string' 
+						? fullCommand.config.description 
+						: (fullCommand.config.description?.en || 'No description available');
 
-					if (fullCommand.config.countDown !== undefined) {
-						commandDetails += `│ ⏱️ Cooldown: ${fullCommand.config.countDown}s\n`;
-					}
+					let commandDetails = `✅ COMMAND DETAILS ✅\n\n`;
+					commandDetails += `🚹 Name: "${fullCommand.config.name}"\n\n`;
+					commandDetails += `ℹ️ Description: ${desc}\n\n`;
+					commandDetails += `⚜️ Usage: "/${fullCommand.config.name}"\n\n`;
+					commandDetails += `🔑 Permission: ${roleText}`;
 
-					// Display unsend configuration if present
-					if (fullCommand.config.unsend !== undefined && fullCommand.config.unsend !== null) {
-						let unsendDisplay;
-						if (typeof fullCommand.config.unsend === 'number') {
-							unsendDisplay = `${fullCommand.config.unsend}s`;
-						} else if (typeof fullCommand.config.unsend === 'string') {
-							unsendDisplay = fullCommand.config.unsend;
-						}
-						commandDetails += `│ 🗑️ Auto-unsend: ${unsendDisplay}\n`;
-					}
-
-					commandDetails += `├─────────────────────◊\n`;
-
-					// Description
-					if (fullCommand.config.description) {
-						const desc = typeof fullCommand.config.description === 'string' ? fullCommand.config.description : fullCommand.config.description.en || 'No description available';
-						commandDetails += `│ 📋 Description:\n│ ${desc}\n├─────────────────────◊\n`;
-					}
-
-					// Guide/Usage
-					let guideText = 'No guide available';
-					if (fullCommand.config.guide) {
-						guideText = typeof fullCommand.config.guide === 'string' ? fullCommand.config.guide : fullCommand.config.guide.en || 'No guide available';
-					}
-
-					commandDetails += `│ 📚 Usage Guide:\n│ ${guideText.replace(/{pn}/g, `!${fullCommand.config.name}`)}\n`;
-
-					commandDetails += `╰─────────────────────◊\n`;
-					commandDetails += `     💫 ST_BOT Command Info`;
-
-					// Send command details (final stage - no new onReply needed)
 					await api.sendMessage(commandDetails, event.threadID);
 					
 				} catch (error) {
