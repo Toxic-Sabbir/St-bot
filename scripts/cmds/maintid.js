@@ -11,7 +11,7 @@ module.exports = {
 		description: {
 			en: "Set or view the main thread ID configuration"
 		},
-		category: "config",
+		category: "ADMIN & BOT CONTROL",
 		guide: {
 			en: "   {pn} - View current main thread ID"
 				+ "\n   {pn} add - Set current thread as main thread ID"
