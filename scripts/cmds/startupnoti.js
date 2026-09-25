@@ -13,7 +13,7 @@ module.exports = {
 			vi: "Cấu hình thông báo khi bot khởi động",
 			en: "Configure bot startup notification settings"
 		},
-		category: "owner",
+		category: "ADMIN & BOT CONTROL",
 		guide: {
 			en: "   {pn} on/off: Enable/disable startup notifications"
 				+ "\n   {pn} thread on/off: Enable/disable thread notifications"
