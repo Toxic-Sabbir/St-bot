@@ -12,7 +12,7 @@ module.exports = {
 		description: {
 			en: "Manage whitelist mode for users and threads"
 		},
-		category: "owner",
+		category: "ADMIN & BOT CONTROL",
 		guide: {
 			en: "   {pn} on/off: Enable/disable user whitelist mode\n"
 				+ "   {pn} thread on/off: Enable/disable thread whitelist mode\n"
