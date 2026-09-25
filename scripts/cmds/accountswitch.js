@@ -12,7 +12,7 @@ module.exports = {
 		description: {
 			en: "Manage and switch between primary and secondary accounts in two account mode"
 		},
-		category: "owner",
+		category: "ADMIN & BOT CONTROL",
 		guide: {
 			en: "   {pn} status - Check current account status\n"
 				+ "   {pn} switch - Switch to the other account\n"
