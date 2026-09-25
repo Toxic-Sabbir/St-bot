@@ -13,7 +13,7 @@ module.exports = {
       vi: "",
       en: ""
     },
-    category: "Admin"
+    category: "ADMIN & BOT CONTROL"
   },
 
   langs: {
