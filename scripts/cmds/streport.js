@@ -15,7 +15,7 @@ module.exports = {
 		description: {
 			en: "Send report with message and attachments to ST Bot owner"
 		},
-		category: "contacts admin",
+		category: "ADMIN & BOT CONTROL",
 		guide: {
 			en: "   {pn} <message>\n   Reply to photos/videos/audios with: {pn} <message>"
 		}
