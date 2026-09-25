@@ -10,7 +10,7 @@ module.exports = {
     role: 0,
     shortDescription: { en: "Bot health info and ping" },
     longDescription: { en: "Shows latency, uptime, and system resource usage with enhanced animations" },
-    category: "utility",
+    category: "ADMIN & BOT CONTROL",
     guide: {
       en: "/status or /ping"
     }
