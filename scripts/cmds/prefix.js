@@ -4,8 +4,8 @@ const { utils } = global;
 module.exports = {
 	config: {
 		name: "prefix",
-		version: "1.4",
-		author: "NTKhang",
+		version: "1.5",
+		author: "NTKhang × trader.sabbir.x1",
 		countDown: 5,
 		role: 0,
 		description: "Thay đổi dấu lệnh của bot trong box chat của bạn hoặc cả hệ thống bot (chỉ admin bot)",
@@ -36,7 +36,7 @@ module.exports = {
 			confirmThisThread: "Vui lòng thả cảm xúc bất kỳ vào tin nhắn này để xác nhận thay đổi prefix trong nhóm chat của bạn",
 			successGlobal: "Đã thay đổi prefix hệ thống bot thành: %1",
 			successThisThread: "Đã thay đổi prefix trong nhóm chat của bạn thành: %1",
-			myPrefix: "🌐 Prefix của hệ thống: %1\n🛸 Prefix của nhóm bạn: %2"
+			myPrefix: "➽────────────────❥\n🌟 Bot Prefix Information 🌟\n\n💫 🌐 System prefix: %1\n🛸 Your box chat prefix: %2\n🔧 Usage: Type \"%2help\" to see all commands\n👑 Bot by: @trader.sabbir.x1\n🎯 Enjoy using the bot! 💖\n➽────────────────❥"
 		},
 		en: {
 			reset: "Your prefix has been reset to default: %1",
@@ -45,7 +45,7 @@ module.exports = {
 			confirmThisThread: "Please react to this message to confirm change prefix in your box chat",
 			successGlobal: "Changed prefix of system bot to: %1",
 			successThisThread: "Changed prefix in your box chat to: %1",
-			myPrefix: "🌐 System prefix: %1\n🛸 Your box chat prefix: %2"
+			myPrefix: "➽────────────────❥\n🌟 Bot Prefix Information 🌟\n\n💫 🌐 System prefix: %1\n🛸 Your box chat prefix: %2\n🔧 Usage: Type \"%2help\" to see all commands\n👑 Bot by: @trader.sabbir.x1\n🎯 Enjoy using the bot! 💖\n➽────────────────❥"
 		}
 	},
 
