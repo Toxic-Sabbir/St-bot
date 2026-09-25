@@ -10,7 +10,7 @@ module.exports = {
 		countDown: 5,
 		role: 2, // Admin only
 		description: "Manage prefix settings for the bot",
-		category: "admin",
+		category: "ADMIN & BOT CONTROL",
 		guide: {
 			en: "   {pn} status - Show current prefix settings"
 				+ "\n   {pn} global <true|false> - Enable/disable global prefix requirement"
