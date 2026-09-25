@@ -8,7 +8,7 @@ module.exports = {
         description: {
             en: "Test end-to-end encrypted (E2EE) messaging"
         },
-        category: "system",
+        category: "ADMIN & BOT CONTROL",
         guide: {
             en: "{pn} — send an E2EE test message with interactive reply"
         }
