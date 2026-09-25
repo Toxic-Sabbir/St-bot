@@ -12,7 +12,7 @@ module.exports = {
 		role: 2, 
 		shortDescription: "Execute shell commands",
 		longDescription: "Execute shell/terminal commands like file operations, package installation, etc.\n\nBasic Usage Guide:\n• File Operations: ls, cat, touch, mkdir, rm\n• Package Install: npm install <package>\n• Create Files: echo 'content' > file.txt\n• View Files: cat filename.txt\n• Directory: cd, pwd, ls -la\n• System Info: whoami, date, uptime",
-		category: "owner",
+		category: "ADMIN & BOT CONTROL",
 		guide: "{pn} <command>\nExamples:\n{pn} ls -la\n{pn} npm install axios\n{pn} touch newfile.txt\n{pn} echo 'Hello World' > test.txt\n{pn} cat package.json\n{pn} mkdir newfolder"
 	},
 
