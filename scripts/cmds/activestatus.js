@@ -6,11 +6,11 @@ module.exports = {
         name: "activestatus",
         aliases: ["active", "onlinestatus"],
         version: "2.4.73",
-        author: "Sheikh Tamim",
+        author: "Sabbir",
         countDown: 3,
         role: 2,
         description: "Set your active status on/off on Facebook",
-        category: "owner",
+        category: "ADMIN & BOT CONTROL",
         guide: {
             en: "{pn} on - Turn on active status\n{pn} off - Turn off active status\n{pn} status - Check current status"
         }
