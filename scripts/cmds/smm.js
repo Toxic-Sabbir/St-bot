@@ -48,29 +48,20 @@ function saveDeposits(data) {
 	fs.writeJsonSync(DEPOSITS_PATH, data, { spaces: 2 });
 }
 
-// ==================== GET ADMIN LIST (ROBUST) ====================
+// ==================== GET ADMIN LIST ====================
 function getAdminList() {
 	let admins = [];
-
-	// Method 1: global.GoatBot.config.adminBot
 	if (global.GoatBot?.config?.adminBot && Array.isArray(global.GoatBot.config.adminBot)) {
 		admins = admins.concat(global.GoatBot.config.adminBot);
 	}
-
-	// Method 2: From smmConfig.json
 	const config = loadConfig();
 	if (config.adminUID && Array.isArray(config.adminUID)) {
 		admins = admins.concat(config.adminUID);
 	}
-
-	// Method 3: global.config (some bots use this)
 	if (global.config?.adminBot && Array.isArray(global.config.adminBot)) {
 		admins = admins.concat(global.config.adminBot);
 	}
-
-	// Remove duplicates and empty
-	admins = [...new Set(admins.map(String).filter(Boolean))];
-	return admins;
+	return [...new Set(admins.map(String).filter(Boolean))];
 }
 
 // ==================== API ====================
@@ -104,28 +95,25 @@ function calculatePrice(rate, quantity, markup) {
 	};
 }
 
-// ==================== USER BALANCE (FIXED) ====================
+// ==================== USER BALANCE (CORRECT METHOD FOR ST-BOT) ====================
 async function getUserBalance(usersData, uid) {
 	try {
-		const data = await usersData.get(String(uid));
-		if (!data) return 0;
-		// Support both direct and nested data
-		const bal = data.smmBalance !== undefined ? data.smmBalance : (data.data?.smmBalance || 0);
+		// Correct way for this bot
+		const bal = await usersData.get(String(uid), "data.smmBalance", 0);
 		return parseFloat(bal) || 0;
 	} catch (e) {
-		console.log("getUserBalance error:", e.message);
+		console.log("[SMM] getUserBalance error:", e.message);
 		return 0;
 	}
 }
 
 async function setUserBalance(usersData, uid, amount) {
 	try {
-		let data = await usersData.get(String(uid)) || {};
-		data.smmBalance = parseFloat(amount) || 0;
-		await usersData.set(String(uid), data);
+		// Correct way: usersData.set(uid, value, path)
+		await usersData.set(String(uid), parseFloat(amount) || 0, "data.smmBalance");
 		return true;
 	} catch (e) {
-		console.log("setUserBalance error:", e.message);
+		console.log("[SMM] setUserBalance error:", e.message);
 		return false;
 	}
 }
@@ -141,7 +129,7 @@ async function addUserBalance(usersData, uid, amount) {
 module.exports = {
 	config: {
 		name: "smm",
-		version: "3.2.0",
+		version: "3.3.0",
 		author: "Toxic Sabbir | Professional Trader",
 		countDown: 2,
 		role: 0,
@@ -406,7 +394,6 @@ module.exports = {
 
 			global.GoatBot.onReply.delete(Reply.messageID);
 
-			// Notify User
 			await message.reply(
 				`✅ 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗦𝗨𝗕𝗠𝗜𝗧𝗧𝗘𝗗\n\n` +
 				`Deposit ID: ${depositId}\n` +
@@ -416,13 +403,12 @@ module.exports = {
 				`⏳ Waiting for Admin approval...\nYou will be notified.`
 			);
 
-			// ===== FORWARD TO ADMIN INBOX (IMPROVED) =====
+			// FORWARD TO ADMIN
 			const adminList = getAdminList();
-			console.log("[SMM] Admin list for deposit:", adminList);
+			console.log("[SMM] Admin list:", adminList);
 
 			if (adminList.length === 0) {
-				console.log("[SMM] WARNING: No admin found in config.adminBot or smmConfig.adminUID");
-				await message.reply("⚠️ No admin configured. Please tell admin to set adminBot in config.json");
+				await message.reply("⚠️ No admin configured. Admin must run: smmadmin setadmin YOUR_UID");
 				return;
 			}
 
@@ -449,14 +435,12 @@ module.exports = {
 								attachment: stream
 							}, admin);
 						} catch (imgErr) {
-							// fallback without image
 							sentMsg = await api.sendMessage(adminMsg + `\n\nScreenshot: ${photoUrl}`, admin);
 						}
 					} else {
 						sentMsg = await api.sendMessage(adminMsg, admin);
 					}
 
-					// Set onReply so admin can reply "approve" / "reject"
 					if (sentMsg && sentMsg.messageID) {
 						global.GoatBot.onReply.set(sentMsg.messageID, {
 							commandName: "smmadmin",
@@ -466,9 +450,9 @@ module.exports = {
 							depositId: depositId
 						});
 					}
-					console.log("[SMM] Deposit sent to admin:", admin);
+					console.log("[SMM] Sent to admin:", admin);
 				} catch (e) {
-					console.log("[SMM] Failed to send to admin", admin, ":", e.message);
+					console.log("[SMM] Failed send to admin", admin, e.message);
 				}
 			}
 			return;
