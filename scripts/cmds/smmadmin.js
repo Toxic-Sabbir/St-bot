@@ -52,23 +52,20 @@ async function apiRequest(params) {
 // ==================== BALANCE (SAME AS smm.js) ====================
 async function getUserBalance(usersData, uid) {
 	try {
-		const data = await usersData.get(String(uid));
-		if (!data) return 0;
-		const bal = data.smmBalance !== undefined ? data.smmBalance : (data.data?.smmBalance || 0);
+		const bal = await usersData.get(String(uid), "data.smmBalance", 0);
 		return parseFloat(bal) || 0;
 	} catch (e) {
+		console.log("[SMMADMIN] getUserBalance error:", e.message);
 		return 0;
 	}
 }
 
 async function setUserBalance(usersData, uid, amount) {
 	try {
-		let data = await usersData.get(String(uid)) || {};
-		data.smmBalance = parseFloat(amount) || 0;
-		await usersData.set(String(uid), data);
+		await usersData.set(String(uid), parseFloat(amount) || 0, "data.smmBalance");
 		return true;
 	} catch (e) {
-		console.log("setUserBalance error:", e.message);
+		console.log("[SMMADMIN] setUserBalance error:", e.message);
 		return false;
 	}
 }
