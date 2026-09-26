@@ -1,0 +1,20 @@
+{
+  "apiUrl": "https://cruxsmm.com/api/v2",
+  "apiKey": "ba0cb1af8eaad9154e62b77358cf4131",
+  "markupPercent": 30,
+  "currency": "USD",
+  "bdtRate": 130,
+  "minDepositUSD": 0.20,
+  "minDepositBDT": 20,
+  "adminUID": ["100090284160878"],
+  "platforms": {
+    "facebook": ["facebook", "fb", "meta"],
+    "instagram": ["instagram", "ig", "insta"],
+    "youtube": ["youtube", "yt", "youtu"],
+    "twitter": ["twitter", "x.com", "tweet"],
+    "tiktok": ["tiktok", "tt"],
+    "telegram": ["telegram", "tg"],
+    "spotify": ["spotify"],
+    "other": []
+  }
+}
