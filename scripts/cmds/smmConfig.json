@@ -4,9 +4,9 @@
   "markupPercent": 30,
   "currency": "USD",
   "bdtRate": 130,
-  "minDepositUSD": 0.20,
+  "minDepositUSD": 0.2,
   "minDepositBDT": 20,
-  "adminUID": ["100090284160878"],
+  "adminUID": ['100090284160878'],
   "platforms": {
     "facebook": ["facebook", "fb", "meta"],
     "instagram": ["instagram", "ig", "insta"],
