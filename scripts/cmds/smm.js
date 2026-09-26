@@ -2,37 +2,76 @@ const axios = require("axios");
 const fs = require("fs-extra");
 const path = require("path");
 
-// ==================== CONFIG ====================
-// Put your SpyroSMM API Key here
-const API_KEY = "ba0cb1af8eaad9154e62b77358cf4131";
-const API_URL = "https://cruxsmm.com/api/v2";
+const CONFIG_PATH = path.join(__dirname, "smmConfig.json");
+const ORDERS_PATH = path.join(__dirname, "smmOrders.json");
+const DEPOSITS_PATH = path.join(__dirname, "smmDeposits.json");
 
-// Your markup percentage (e.g. 30 = 30% profit)
-const MARKUP_PERCENT = 30;
-
-// ==================== HELPER ====================
-async function apiRequest(params) {
+// ==================== LOAD / SAVE ====================
+function loadConfig() {
 	try {
-		const res = await axios.post(API_URL, null, {
-			params: {
-				key: API_KEY,
-				...params
-			},
+		return fs.readJsonSync(CONFIG_PATH);
+	} catch (e) {
+		return {
+			apiUrl: "https://cruxsmm.com/api/v2",
+			apiKey: "ba0cb1af8eaad9154e62b77358cf4131",
+			markupPercent: 30,
+			currency: "USD",
+			bdtRate: 130,
+			minDepositUSD: 1,
+			minDepositBDT: 130,
+			adminUID: [],
+			platforms: {
+				facebook: ["facebook", "fb", "meta"],
+				instagram: ["instagram", "ig", "insta"],
+				youtube: ["youtube", "yt", "youtu"],
+				twitter: ["twitter", "x.com", "tweet"],
+				tiktok: ["tiktok", "tt"],
+				telegram: ["telegram", "tg"],
+				spotify: ["spotify"],
+				other: []
+			}
+		};
+	}
+}
+
+function loadOrders() {
+	try { return fs.readJsonSync(ORDERS_PATH); } catch (e) { return {}; }
+}
+function saveOrders(data) {
+	fs.writeJsonSync(ORDERS_PATH, data, { spaces: 2 });
+}
+
+function loadDeposits() {
+	try { return fs.readJsonSync(DEPOSITS_PATH); } catch (e) { return {}; }
+}
+function saveDeposits(data) {
+	fs.writeJsonSync(DEPOSITS_PATH, data, { spaces: 2 });
+}
+
+// ==================== API ====================
+async function apiRequest(params) {
+	const config = loadConfig();
+	if (!config.apiKey || config.apiKey.includes("YOUR_")) {
+		return { error: "API Key not configured. Contact Admin." };
+	}
+	try {
+		const res = await axios.post(config.apiUrl, null, {
+			params: { key: config.apiKey, ...params },
 			timeout: 30000
 		});
 		return res.data;
 	} catch (err) {
-		return { error: err.response?.data?.error || err.message || "API Error" };
+		return { error: err.response?.data?.error || err.message || "API Connection Error" };
 	}
 }
 
 function formatMoney(amount) {
-	return parseFloat(amount).toFixed(4);
+	return parseFloat(amount || 0).toFixed(4);
 }
 
-function calculatePrice(rate, quantity) {
+function calculatePrice(rate, quantity, markup) {
 	const cost = (parseFloat(rate) / 1000) * quantity;
-	const sell = cost * (1 + MARKUP_PERCENT / 100);
+	const sell = cost * (1 + (markup || 30) / 100);
 	return {
 		cost: formatMoney(cost),
 		sell: formatMoney(sell),
@@ -40,158 +79,76 @@ function calculatePrice(rate, quantity) {
 	};
 }
 
+// ==================== USER BALANCE ====================
+async function getUserBalance(usersData, uid) {
+	const data = await usersData.get(uid) || {};
+	return parseFloat(data.smmBalance || 0);
+}
+
+async function setUserBalance(usersData, uid, amount) {
+	const data = await usersData.get(uid) || {};
+	data.smmBalance = parseFloat(amount);
+	await usersData.set(uid, data);
+}
+
+async function addUserBalance(usersData, uid, amount) {
+	const current = await getUserBalance(usersData, uid);
+	const newBal = current + parseFloat(amount);
+	await setUserBalance(usersData, uid, newBal);
+	return newBal;
+}
+
 // ==================== MAIN COMMAND ====================
 module.exports = {
 	config: {
 		name: "smm",
-		version: "1.0.0",
-		author: "Toxic Sabbir | Professional Binary Trader",
-		countDown: 3,
+		version: "3.0.0",
+		author: "Toxic Sabbir | Professional Trader",
+		countDown: 2,
 		role: 0,
 		description: {
-			en: "Full SMM Panel - Order services, check status, view services & balance"
+			en: "Full SMM Panel with Deposit System - Facebook, Instagram, YouTube, Twitter, TikTok"
 		},
-		category: "SMM PANEL SERVICE",
+		category: "SMM PANEL",
 		guide: {
-			en: "{pn} → Open SMM Panel\n{pn} services → Browse services\n{pn} order → Place new order\n{pn} status <orderID> → Check order\n{pn} balance → Check balance (Admin)"
+			en: "{pn} → Open Panel\n{pn} balance → Check balance\n{pn} deposit → Add funds\n{pn} status <orderID> → Check order\n{pn} myorders → Your orders"
 		}
 	},
 
-	langs: {
-		en: {
-			menu: `🚀 𝗦𝗠𝗠 𝗣𝗔𝗡𝗘𝗟\n\n` +
-				`1️⃣ Services List\n` +
-				`2️⃣ Place New Order\n` +
-				`3️⃣ Check Order Status\n` +
-				`4️⃣ My Orders\n` +
-				`5️⃣ Balance (Admin)\n\n` +
-				`👉 Reply with number (1-5)`,
-			noApiKey: "❌ API Key not set. Please contact admin.",
-			loading: "⏳ Loading...",
-			invalid: "❌ Invalid choice. Please try again.",
-			onlyAdmin: "❌ This feature is for Admin only."
-		}
-	},
+	onStart: async function ({ api, event, args, message, usersData, role }) {
+		const { senderID, threadID } = event;
+		const config = loadConfig();
+		const bal = await getUserBalance(usersData, senderID);
 
-	onStart: async function ({ api, event, args, message, role, getLang }) {
-		const { threadID, senderID, messageID } = event;
-
-		if (API_KEY === "YOUR_SPYROSMM_API_KEY_HERE") {
-			return message.reply(getLang("noApiKey"));
+		// ===== BALANCE =====
+		if (args[0] && ["balance", "bal", "wallet"].includes(args[0].toLowerCase())) {
+			return message.reply(
+				`💰 𝗬𝗢𝗨𝗥 𝗦𝗠𝗠 𝗕𝗔𝗟𝗔𝗡𝗖𝗘\n\n` +
+				`Balance: $${formatMoney(bal)} USD\n\n` +
+				`To add funds type: smm deposit`
+			);
 		}
 
-		// Direct commands
-		if (args[0]) {
-			const cmd = args[0].toLowerCase();
-
-			// ===== BALANCE =====
-			if (cmd === "balance" || cmd === "bal") {
-				if (role < 2) return message.reply(getLang("onlyAdmin"));
-				const data = await apiRequest({ action: "balance" });
-				if (data.error) return message.reply(`❌ Error: ${data.error}`);
-				return message.reply(
-					`💰 𝗦𝗠𝗠 𝗕𝗔𝗟𝗔𝗡𝗖𝗘\n\n` +
-					`Balance: $${data.balance}\n` +
-					`Currency: ${data.currency || "USD"}\n` +
-					`Markup: ${MARKUP_PERCENT}%`
-				);
-			}
-
-			// ===== STATUS =====
-			if (cmd === "status" || cmd === "st") {
-				const orderID = args[1];
-				if (!orderID) return message.reply("❌ Usage: smm status <orderID>");
-				const data = await apiRequest({ action: "status", order: orderID });
-				if (data.error) return message.reply(`❌ Error: ${data.error}`);
-				return message.reply(
-					`📦 𝗢𝗥𝗗𝗘𝗥 𝗦𝗧𝗔𝗧𝗨𝗦\n\n` +
-					`Order ID: ${orderID}\n` +
-					`Status: ${data.status}\n` +
-					`Charge: $${data.charge}\n` +
-					`Start Count: ${data.start_count}\n` +
-					`Remains: ${data.remains}\n` +
-					`Currency: ${data.currency || "USD"}`
-				);
-			}
-
-			// ===== SERVICES =====
-			if (cmd === "services" || cmd === "service" || cmd === "list") {
-				return showServices(api, event, message, 1);
-			}
-
-			// ===== ORDER =====
-			if (cmd === "order" || cmd === "new") {
-				return startOrderFlow(api, event, message);
-			}
-		}
-
-		// Default: Show Menu
-		const sent = await message.reply(getLang("menu"));
-		if (sent) {
-			global.GoatBot.onReply.set(sent.messageID, {
-				commandName: "smm",
-				messageID: sent.messageID,
-				author: senderID,
-				type: "mainMenu"
+		// ===== MY ORDERS =====
+		if (args[0] && ["myorders", "orders", "history"].includes(args[0].toLowerCase())) {
+			const orders = loadOrders();
+			const userOrders = orders[senderID] || [];
+			if (userOrders.length === 0) return message.reply("📭 You have no orders yet.");
+			let msg = `📋 𝗬𝗢𝗨𝗥 𝗢𝗥𝗗𝗘𝗥𝗦 (Last 10)\n\n`;
+			userOrders.slice(0, 10).forEach((o, i) => {
+				msg += `${i + 1}. ID: ${o.orderId}\n`;
+				msg += `   ${o.serviceName.substring(0, 40)}\n`;
+				msg += `   Qty: ${o.quantity} | $${o.charge} | ${o.status}\n\n`;
 			});
-		}
-	},
-
-	onReply: async function ({ api, event, Reply, message, role }) {
-		const { threadID, senderID, body, messageID } = event;
-
-		if (Reply.author !== senderID) {
-			return api.sendMessage("❌ This menu is not for you!", threadID, messageID);
+			return message.reply(msg);
 		}
 
-		const choice = body.trim().toLowerCase();
-
-		// ========== MAIN MENU ==========
-		if (Reply.type === "mainMenu") {
-			if (choice === "1" || choice === "services") {
-				global.GoatBot.onReply.delete(Reply.messageID);
-				try { await api.unsendMessage(Reply.messageID); } catch (e) {}
-				return showServices(api, event, message, 1);
-			}
-			if (choice === "2" || choice === "order") {
-				global.GoatBot.onReply.delete(Reply.messageID);
-				try { await api.unsendMessage(Reply.messageID); } catch (e) {}
-				return startOrderFlow(api, event, message);
-			}
-			if (choice === "3" || choice === "status") {
-				global.GoatBot.onReply.delete(Reply.messageID);
-				try { await api.unsendMessage(Reply.messageID); } catch (e) {}
-				const sent = await message.reply("📦 Enter Order ID to check status:");
-				if (sent) {
-					global.GoatBot.onReply.set(sent.messageID, {
-						commandName: "smm",
-						messageID: sent.messageID,
-						author: senderID,
-						type: "checkStatus"
-					});
-				}
-				return;
-			}
-			if (choice === "4" || choice === "myorders") {
-				return message.reply("📋 My Orders feature coming in next update.\nUse: smm status <orderID>");
-			}
-			if (choice === "5" || choice === "balance") {
-				if (role < 2) return message.reply("❌ Admin only.");
-				const data = await apiRequest({ action: "balance" });
-				if (data.error) return message.reply(`❌ ${data.error}`);
-				return message.reply(
-					`💰 𝗦𝗠𝗠 𝗕𝗔𝗟𝗔𝗡𝗖𝗘\n\nBalance: $${data.balance}\nCurrency: ${data.currency || "USD"}`
-				);
-			}
-			return message.reply("❌ Invalid choice. Reply 1-5");
-		}
-
-		// ========== CHECK STATUS ==========
-		if (Reply.type === "checkStatus") {
-			const orderID = body.trim();
-			global.GoatBot.onReply.delete(Reply.messageID);
+		// ===== STATUS =====
+		if (args[0] && ["status", "st", "check"].includes(args[0].toLowerCase())) {
+			const orderID = args[1];
+			if (!orderID) return message.reply("❌ Usage: smm status <orderID>");
 			const data = await apiRequest({ action: "status", order: orderID });
-			if (data.error) return message.reply(`❌ Error: ${data.error}`);
+			if (data.error) return message.reply(`❌ ${data.error}`);
 			return message.reply(
 				`📦 𝗢𝗥𝗗𝗘𝗥 𝗦𝗧𝗔𝗧𝗨𝗦\n\n` +
 				`Order ID: ${orderID}\n` +
@@ -202,56 +159,315 @@ module.exports = {
 			);
 		}
 
-		// ========== SERVICES PAGE ==========
-		if (Reply.type === "services") {
-			if (choice === "next" || choice === "n") {
-				return showServices(api, event, message, Reply.page + 1, Reply.services);
-			}
-			if (choice === "prev" || choice === "p") {
-				return showServices(api, event, message, Math.max(1, Reply.page - 1), Reply.services);
-			}
-			if (choice === "back" || choice === "menu") {
+		// ===== DEPOSIT =====
+		if (args[0] && ["deposit", "addfund", "recharge", "topup"].includes(args[0].toLowerCase())) {
+			return startDeposit(api, event, message);
+		}
+
+		// ===== MAIN MENU =====
+		const platforms = Object.keys(config.platforms).filter(p => p !== "other");
+		let menu = `🚀 𝗦𝗠𝗠 𝗣𝗔𝗡𝗘𝗟\n\n`;
+		menu += `💰 Your Balance: $${formatMoney(bal)} USD\n\n`;
+
+		if (bal <= 0) {
+			menu += `⚠️ Your balance is $0\nYou cannot place orders.\nType: smm deposit\n\n`;
+		}
+
+		menu += `📌 Select Platform:\n\n`;
+		platforms.forEach((p, i) => {
+			const emoji = { facebook: "📘", instagram: "📸", youtube: "▶️", twitter: "🐦", tiktok: "🎵", telegram: "✈️", spotify: "🎧" }[p] || "🔹";
+			menu += `${i + 1}. ${emoji} ${p.toUpperCase()}\n`;
+		});
+		menu += `\n8️⃣ 💳 Deposit Funds\n9️⃣ 💰 Check Balance\n\n👉 Reply with number`;
+
+		const sent = await message.reply(menu);
+		if (sent) {
+			global.GoatBot.onReply.set(sent.messageID, {
+				commandName: "smm",
+				messageID: sent.messageID,
+				author: senderID,
+				type: "mainMenu",
+				platforms
+			});
+		}
+	},
+
+	onReply: async function ({ api, event, Reply, message, usersData, role }) {
+		const { senderID, body, threadID, messageID, attachments } = event;
+		if (Reply.author !== senderID) {
+			return api.sendMessage("❌ This is not for you!", threadID, messageID);
+		}
+
+		const choice = (body || "").trim().toLowerCase();
+		const config = loadConfig();
+
+		// ========== MAIN MENU ==========
+		if (Reply.type === "mainMenu") {
+			// Deposit option
+			if (choice === "8" || choice === "deposit") {
 				global.GoatBot.onReply.delete(Reply.messageID);
 				try { await api.unsendMessage(Reply.messageID); } catch (e) {}
-				const sent = await message.reply(module.exports.langs.en.menu);
+				return startDeposit(api, event, message);
+			}
+			// Balance
+			if (choice === "9" || choice === "balance") {
+				const bal = await getUserBalance(usersData, senderID);
+				return message.reply(`💰 Your Balance: $${formatMoney(bal)} USD`);
+			}
+
+			const index = parseInt(choice) - 1;
+			if (isNaN(index) || index < 0 || index >= Reply.platforms.length) {
+				return message.reply("❌ Invalid choice.");
+			}
+
+			// Check balance before allowing platform select
+			const bal = await getUserBalance(usersData, senderID);
+			if (bal <= 0) {
+				return message.reply(
+					`❌ Your balance is $0\n\n` +
+					`You cannot place any order.\n` +
+					`Please deposit first: smm deposit`
+				);
+			}
+
+			const platform = Reply.platforms[index];
+			global.GoatBot.onReply.delete(Reply.messageID);
+			try { await api.unsendMessage(Reply.messageID); } catch (e) {}
+
+			const loadingMsg = await message.reply(`⏳ Loading ${platform.toUpperCase()} services...`);
+			const services = await apiRequest({ action: "services" });
+
+			if (services.error || !Array.isArray(services)) {
+				return message.reply(`❌ Failed: ${services.error || "Unknown error"}`);
+			}
+
+			const keywords = config.platforms[platform] || [platform];
+			const filtered = services.filter(s => {
+				const cat = (s.category || "").toLowerCase();
+				const name = (s.name || "").toLowerCase();
+				return keywords.some(k => cat.includes(k) || name.includes(k));
+			});
+
+			if (filtered.length === 0) {
+				return message.reply(`❌ No services found for ${platform.toUpperCase()}.`);
+			}
+
+			return showPlatformServices(api, event, message, platform, filtered, 1);
+		}
+
+		// ========== DEPOSIT CURRENCY SELECT ==========
+		if (Reply.type === "depositCurrency") {
+			if (choice === "1" || choice === "usd") {
+				global.GoatBot.onReply.delete(Reply.messageID);
+				const sent = await message.reply(
+					`💵 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗨𝗦𝗗\n\n` +
+					`Minimum: $${config.minDepositUSD}\n\n` +
+					`Send the amount you want to deposit (example: 10):`
+				);
 				if (sent) {
 					global.GoatBot.onReply.set(sent.messageID, {
 						commandName: "smm",
 						messageID: sent.messageID,
 						author: senderID,
-						type: "mainMenu"
+						type: "depositAmount",
+						currency: "USD",
+						rate: 1
 					});
 				}
 				return;
 			}
+			if (choice === "2" || choice === "bdt") {
+				global.GoatBot.onReply.delete(Reply.messageID);
+				const sent = await message.reply(
+					`🇧🇩 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗕𝗗𝗧\n\n` +
+					`Rate: 1 USD = ${config.bdtRate} BDT\n` +
+					`Minimum: ${config.minDepositBDT} BDT\n\n` +
+					`Send the amount in BDT (example: 1300):`
+				);
+				if (sent) {
+					global.GoatBot.onReply.set(sent.messageID, {
+						commandName: "smm",
+						messageID: sent.messageID,
+						author: senderID,
+						type: "depositAmount",
+						currency: "BDT",
+						rate: config.bdtRate
+					});
+				}
+				return;
+			}
+			return message.reply("❌ Reply 1 for USD or 2 for BDT");
+		}
 
-			// Select service by number
+		// ========== DEPOSIT AMOUNT ==========
+		if (Reply.type === "depositAmount") {
+			const amount = parseFloat(choice);
+			const min = Reply.currency === "USD" ? config.minDepositUSD : config.minDepositBDT;
+
+			if (isNaN(amount) || amount < min) {
+				return message.reply(`❌ Minimum amount is ${min} ${Reply.currency}`);
+			}
+
+			const usdAmount = Reply.currency === "USD" ? amount : (amount / Reply.rate);
+
+			global.GoatBot.onReply.delete(Reply.messageID);
+			const sent = await message.reply(
+				`✅ Amount: ${amount} ${Reply.currency} (≈ $${formatMoney(usdAmount)} USD)\n\n` +
+				`Now send your Transaction ID (TRX ID):`
+			);
+			if (sent) {
+				global.GoatBot.onReply.set(sent.messageID, {
+					commandName: "smm",
+					messageID: sent.messageID,
+					author: senderID,
+					type: "depositTRX",
+					currency: Reply.currency,
+					amount: amount,
+					usdAmount: usdAmount,
+					rate: Reply.rate
+				});
+			}
+			return;
+		}
+
+		// ========== DEPOSIT TRX ==========
+		if (Reply.type === "depositTRX") {
+			const trx = body.trim();
+			if (!trx || trx.length < 5) {
+				return message.reply("❌ Please send a valid Transaction ID.");
+			}
+
+			global.GoatBot.onReply.delete(Reply.messageID);
+			const sent = await message.reply(
+				`✅ TRX ID: ${trx}\n\n` +
+				`📸 Now send the Screenshot of payment\n` +
+				`(Send image only)`
+			);
+			if (sent) {
+				global.GoatBot.onReply.set(sent.messageID, {
+					commandName: "smm",
+					messageID: sent.messageID,
+					author: senderID,
+					type: "depositScreenshot",
+					currency: Reply.currency,
+					amount: Reply.amount,
+					usdAmount: Reply.usdAmount,
+					trx: trx
+				});
+			}
+			return;
+		}
+
+		// ========== DEPOSIT SCREENSHOT ==========
+		if (Reply.type === "depositScreenshot") {
+			if (!attachments || attachments.length === 0 || !attachments[0].type || attachments[0].type !== "photo") {
+				return message.reply("❌ Please send a screenshot (image).");
+			}
+
+			const photoUrl = attachments[0].url || attachments[0].previewUrl || null;
+
+			// Save pending deposit
+			const deposits = loadDeposits();
+			const depositId = `DEP${Date.now()}`;
+			deposits[depositId] = {
+				id: depositId,
+				userID: senderID,
+				currency: Reply.currency,
+				amount: Reply.amount,
+				usdAmount: Reply.usdAmount,
+				trx: Reply.trx,
+				screenshot: photoUrl,
+				status: "pending",
+				time: new Date().toISOString()
+			};
+			saveDeposits(deposits);
+
+			global.GoatBot.onReply.delete(Reply.messageID);
+
+			// Notify user
+			await message.reply(
+				`✅ 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗦𝗨𝗕𝗠𝗜𝗧𝗧𝗘𝗗\n\n` +
+				`Deposit ID: ${depositId}\n` +
+				`Amount: ${Reply.amount} ${Reply.currency}\n` +
+				`≈ $${formatMoney(Reply.usdAmount)} USD\n` +
+				`TRX: ${Reply.trx}\n\n` +
+				`⏳ Waiting for Admin approval...\n` +
+				`You will be notified.`
+			);
+
+			// Send to all admins
+			const config = loadConfig();
+			const adminList = global.GoatBot?.config?.adminBot || config.adminUID || [];
+			
+			const adminMsg =
+				`💳 𝗡𝗘𝗪 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗥𝗘𝗤𝗨𝗘𝗦𝗧\n\n` +
+				`Deposit ID: ${depositId}\n` +
+				`User ID: ${senderID}\n` +
+				`Amount: ${Reply.amount} ${Reply.currency}\n` +
+				`USD Value: $${formatMoney(Reply.usdAmount)}\n` +
+				`TRX ID: ${Reply.trx}\n\n` +
+				`👉 To Approve: smmadmin approve ${depositId}\n` +
+				`👉 To Reject: smmadmin reject ${depositId}`;
+
+			// Try send with image if possible
+			for (const admin of adminList) {
+				try {
+					if (photoUrl) {
+						await api.sendMessage({
+							body: adminMsg,
+							attachment: await global.utils.getStreamFromURL(photoUrl)
+						}, admin);
+					} else {
+						await api.sendMessage(adminMsg, admin);
+					}
+				} catch (e) {
+					try { await api.sendMessage(adminMsg, admin); } catch (e2) {}
+				}
+			}
+
+			// Also send to current thread if admin is here
+			return;
+		}
+
+		// ========== PLATFORM SERVICES ==========
+		if (Reply.type === "platformServices") {
+			if (choice === "next" || choice === "n") {
+				return showPlatformServices(api, event, message, Reply.platform, Reply.services, Reply.page + 1);
+			}
+			if (choice === "prev" || choice === "p") {
+				return showPlatformServices(api, event, message, Reply.platform, Reply.services, Math.max(1, Reply.page - 1));
+			}
+			if (choice === "back" || choice === "menu") {
+				global.GoatBot.onReply.delete(Reply.messageID);
+				try { await api.unsendMessage(Reply.messageID); } catch (e) {}
+				return module.exports.onStart({ api, event, args: [], message, usersData, role });
+			}
+
 			const num = parseInt(choice);
 			if (!isNaN(num) && num >= 1 && num <= Reply.pageServices.length) {
 				const selected = Reply.pageServices[num - 1];
 				global.GoatBot.onReply.delete(Reply.messageID);
 				try { await api.unsendMessage(Reply.messageID); } catch (e) {}
 
-				const priceInfo = calculatePrice(selected.rate, selected.min);
-				const msg =
+				const priceInfo = calculatePrice(selected.rate, selected.min, config.markupPercent);
+				const detail =
 					`📌 𝗦𝗘𝗥𝗩𝗜𝗖𝗘 𝗗𝗘𝗧𝗔𝗜𝗟𝗦\n\n` +
 					`ID: ${selected.service}\n` +
 					`Name: ${selected.name}\n` +
 					`Category: ${selected.category}\n` +
 					`Rate: $${selected.rate} / 1000\n` +
 					`Min: ${selected.min} | Max: ${selected.max}\n` +
-					`Refill: ${selected.refill ? "✅" : "❌"} | Cancel: ${selected.cancel ? "✅" : "❌"}\n\n` +
-					`💰 Price for Min (${selected.min}): $${priceInfo.sell}\n\n` +
-					`👉 To order this service reply:\n` +
-					`order ${selected.service}`;
+					`Refill: ${selected.refill ? "✅ Yes" : "❌ No"}\n\n` +
+					`💰 From $${priceInfo.sell}\n\n` +
+					`👉 Reply with quantity to order\n👉 Or type "back"`;
 
-				const sent = await message.reply(msg);
+				const sent = await message.reply(detail);
 				if (sent) {
 					global.GoatBot.onReply.set(sent.messageID, {
 						commandName: "smm",
 						messageID: sent.messageID,
 						author: senderID,
-						type: "serviceSelected",
+						type: "enterQuantity",
 						service: selected
 					});
 				}
@@ -260,25 +476,38 @@ module.exports = {
 			return message.reply("❌ Invalid. Reply number / next / prev / back");
 		}
 
-		// ========== ORDER FLOW ==========
-		if (Reply.type === "orderService") {
-			const serviceID = body.trim();
-			if (!serviceID || isNaN(serviceID)) {
-				return message.reply("❌ Please enter a valid Service ID number.");
+		// ========== ENTER QUANTITY ==========
+		if (Reply.type === "enterQuantity") {
+			if (choice === "back") {
+				global.GoatBot.onReply.delete(Reply.messageID);
+				return message.reply("❌ Cancelled.");
 			}
-			// Fetch service info
-			const services = await apiRequest({ action: "services" });
-			if (services.error || !Array.isArray(services)) {
-				return message.reply("❌ Failed to load services.");
+
+			const qty = parseInt(choice);
+			const service = Reply.service;
+			if (isNaN(qty) || qty < parseInt(service.min) || qty > parseInt(service.max)) {
+				return message.reply(`❌ Quantity must be ${service.min} - ${service.max}`);
 			}
-			const service = services.find(s => String(s.service) === String(serviceID));
-			if (!service) {
-				return message.reply("❌ Service ID not found.");
+
+			const priceInfo = calculatePrice(service.rate, qty, config.markupPercent);
+			const userBal = await getUserBalance(usersData, senderID);
+
+			if (userBal < parseFloat(priceInfo.sell)) {
+				return message.reply(
+					`❌ Insufficient Balance!\n\n` +
+					`Required: $${priceInfo.sell}\n` +
+					`Your Balance: $${formatMoney(userBal)}\n\n` +
+					`Deposit first: smm deposit`
+				);
 			}
 
 			global.GoatBot.onReply.delete(Reply.messageID);
 			const sent = await message.reply(
-				`✅ Selected: ${service.name}\n\n` +
+				`🛒 Confirm Order\n\n` +
+				`Service: ${service.name}\n` +
+				`Qty: ${qty}\n` +
+				`Price: $${priceInfo.sell}\n` +
+				`Balance after: $${formatMoney(userBal - priceInfo.sell)}\n\n` +
 				`📎 Now send the Link:`
 			);
 			if (sent) {
@@ -286,160 +515,116 @@ module.exports = {
 					commandName: "smm",
 					messageID: sent.messageID,
 					author: senderID,
-					type: "orderLink",
-					service: service
+					type: "enterLink",
+					service,
+					quantity: qty,
+					price: priceInfo
 				});
 			}
 			return;
 		}
 
-		if (Reply.type === "orderLink") {
+		// ========== ENTER LINK + PLACE ORDER ==========
+		if (Reply.type === "enterLink") {
 			const link = body.trim();
 			if (!link.startsWith("http")) {
-				return message.reply("❌ Please send a valid link (starting with http)");
+				return message.reply("❌ Send a valid link (http/https)");
 			}
 
-			global.GoatBot.onReply.delete(Reply.messageID);
-			const sent = await message.reply(
-				`🔗 Link: ${link}\n\n` +
-				`📊 Enter Quantity (Min: ${Reply.service.min} | Max: ${Reply.service.max}):`
-			);
-			if (sent) {
-				global.GoatBot.onReply.set(sent.messageID, {
-					commandName: "smm",
-					messageID: sent.messageID,
-					author: senderID,
-					type: "orderQuantity",
-					service: Reply.service,
-					link: link
-				});
-			}
-			return;
-		}
+			const { service, quantity, price } = Reply;
+			const userBal = await getUserBalance(usersData, senderID);
 
-		if (Reply.type === "orderQuantity") {
-			const qty = parseInt(body.trim());
-			const service = Reply.service;
-
-			if (isNaN(qty) || qty < parseInt(service.min) || qty > parseInt(service.max)) {
-				return message.reply(`❌ Quantity must be between ${service.min} and ${service.max}`);
-			}
-
-			const price = calculatePrice(service.rate, qty);
-
-			global.GoatBot.onReply.delete(Reply.messageID);
-
-			const confirmMsg =
-				`🛒 𝗖𝗢𝗡𝗙𝗜𝗥𝗠 𝗢𝗥𝗗𝗘𝗥\n\n` +
-				`Service: ${service.name}\n` +
-				`ID: ${service.service}\n` +
-				`Link: ${Reply.link}\n` +
-				`Quantity: ${qty}\n\n` +
-				`💰 Your Price: $${price.sell}\n` +
-				`(Cost: $${price.cost} | Profit: $${price.profit})\n\n` +
-				`👉 Reply YES to confirm or NO to cancel`;
-
-			const sent = await message.reply(confirmMsg);
-			if (sent) {
-				global.GoatBot.onReply.set(sent.messageID, {
-					commandName: "smm",
-					messageID: sent.messageID,
-					author: senderID,
-					type: "orderConfirm",
-					service: service,
-					link: Reply.link,
-					quantity: qty,
-					price: price
-				});
-			}
-			return;
-		}
-
-		if (Reply.type === "orderConfirm") {
-			if (choice !== "yes" && choice !== "y") {
+			if (userBal < parseFloat(price.sell)) {
 				global.GoatBot.onReply.delete(Reply.messageID);
-				return message.reply("❌ Order cancelled.");
+				return message.reply("❌ Insufficient balance.");
 			}
 
 			// Place order
-			const data = await apiRequest({
+			const orderRes = await apiRequest({
 				action: "add",
-				service: Reply.service.service,
-				link: Reply.link,
-				quantity: Reply.quantity
+				service: service.service,
+				link: link,
+				quantity: quantity
 			});
 
 			global.GoatBot.onReply.delete(Reply.messageID);
 
-			if (data.error || !data.order) {
-				return message.reply(`❌ Order Failed: ${data.error || "Unknown error"}`);
+			if (orderRes.error || !orderRes.order) {
+				return message.reply(`❌ Order Failed: ${orderRes.error || "Unknown error"}`);
 			}
+
+			// Deduct user balance
+			const newBal = await addUserBalance(usersData, senderID, -parseFloat(price.sell));
+
+			// Save order
+			const orders = loadOrders();
+			if (!orders[senderID]) orders[senderID] = [];
+			orders[senderID].unshift({
+				orderId: orderRes.order,
+				serviceId: service.service,
+				serviceName: service.name,
+				link,
+				quantity,
+				charge: price.sell,
+				cost: price.cost,
+				profit: price.profit,
+				status: "Pending",
+				time: new Date().toISOString()
+			});
+			saveOrders(orders);
 
 			return message.reply(
-				`✅ 𝗢𝗥𝗗𝗘𝗥 𝗣𝗟𝗔𝗖𝗘𝗗 𝗦𝗨𝗖𝗖𝗘𝗦𝗦𝗙𝗨𝗟𝗟𝗬\n\n` +
-				`Order ID: ${data.order}\n` +
-				`Service: ${Reply.service.name}\n` +
-				`Quantity: ${Reply.quantity}\n` +
-				`Link: ${Reply.link}\n` +
-				`Charged: $${Reply.price.sell}\n\n` +
-				`Use: smm status ${data.order} to track`
+				`✅ 𝗢𝗥𝗗𝗘𝗥 𝗣𝗟𝗔𝗖𝗘𝗗\n\n` +
+				`Order ID: ${orderRes.order}\n` +
+				`Service: ${service.name}\n` +
+				`Qty: ${quantity}\n` +
+				`Charged: $${price.sell}\n` +
+				`New Balance: $${formatMoney(newBal)}\n\n` +
+				`Track: smm status ${orderRes.order}`
 			);
-		}
-
-		// From service details
-		if (Reply.type === "serviceSelected") {
-			if (choice.startsWith("order")) {
-				const parts = choice.split(" ");
-				const sid = parts[1] || Reply.service.service;
-				global.GoatBot.onReply.delete(Reply.messageID);
-				const sent = await message.reply(`📎 Send the Link for service ${sid}:`);
-				if (sent) {
-					global.GoatBot.onReply.set(sent.messageID, {
-						commandName: "smm",
-						messageID: sent.messageID,
-						author: senderID,
-						type: "orderLink",
-						service: Reply.service
-					});
-				}
-			}
 		}
 	}
 };
 
-// ==================== SERVICES LIST FUNCTION ====================
-async function showServices(api, event, message, page = 1, cachedServices = null) {
-	const { threadID, senderID } = event;
-
-	let services = cachedServices;
-	if (!services) {
-		const data = await apiRequest({ action: "services" });
-		if (data.error || !Array.isArray(data)) {
-			return message.reply(`❌ Failed to load services: ${data.error || "Unknown"}`);
-		}
-		services = data;
+// ==================== HELPERS ====================
+async function startDeposit(api, event, message) {
+	const { senderID } = event;
+	const config = loadConfig();
+	const sent = await message.reply(
+		`💳 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗙𝗨𝗡𝗗𝗦\n\n` +
+		`Select Currency:\n\n` +
+		`1️⃣ USD\n` +
+		`2️⃣ BDT (1 USD = ${config.bdtRate} BDT)\n\n` +
+		`👉 Reply 1 or 2`
+	);
+	if (sent) {
+		global.GoatBot.onReply.set(sent.messageID, {
+			commandName: "smm",
+			messageID: sent.messageID,
+			author: senderID,
+			type: "depositCurrency"
+		});
 	}
+}
 
-	const perPage = 10;
-	const totalPages = Math.ceil(services.length / perPage);
+async function showPlatformServices(api, event, message, platform, services, page = 1) {
+	const { senderID } = event;
+	const config = loadConfig();
+	const perPage = 8;
+	const totalPages = Math.ceil(services.length / perPage) || 1;
 	if (page > totalPages) page = totalPages;
 	if (page < 1) page = 1;
 
 	const start = (page - 1) * perPage;
 	const pageServices = services.slice(start, start + perPage);
 
-	let msg = `📋 𝗦𝗘𝗥𝗩𝗜𝗖𝗘𝗦 𝗟𝗜𝗦𝗧 (Page ${page}/${totalPages})\n`;
-	msg += `Total Services: ${services.length}\n\n`;
-
+	let msg = `📋 ${platform.toUpperCase()} SERVICES\nPage ${page}/${totalPages} | Total: ${services.length}\n\n`;
 	pageServices.forEach((s, i) => {
-		const price = calculatePrice(s.rate, s.min);
-		msg += `${i + 1}. [ID:${s.service}] ${s.name}\n`;
-		msg += `   📂 ${s.category} | $${s.rate}/1k | Min:${s.min}\n`;
-		msg += `   💰 From $${price.sell}\n\n`;
+		const p = calculatePrice(s.rate, s.min, config.markupPercent);
+		msg += `${i + 1}. [ID:${s.service}] ${s.name.substring(0, 42)}\n`;
+		msg += `   $${s.rate}/1k | Min ${s.min} → $${p.sell}\n\n`;
 	});
-
-	msg += `👉 Reply number to view details\n`;
-	msg += `👉 next / prev / back`;
+	msg += `👉 number / next / prev / back`;
 
 	const sent = await message.reply(msg);
 	if (sent) {
@@ -447,28 +632,11 @@ async function showServices(api, event, message, page = 1, cachedServices = null
 			commandName: "smm",
 			messageID: sent.messageID,
 			author: senderID,
-			type: "services",
-			page: page,
-			services: services,
-			pageServices: pageServices
-		});
-	}
-}
-
-// ==================== START ORDER FLOW ====================
-async function startOrderFlow(api, event, message) {
-	const { senderID } = event;
-	const sent = await message.reply(
-		`🛒 𝗡𝗘𝗪 𝗢𝗥𝗗𝗘𝗥\n\n` +
-		`Please enter the Service ID:\n` +
-		`(Use smm services to find ID)`
-	);
-	if (sent) {
-		global.GoatBot.onReply.set(sent.messageID, {
-			commandName: "smm",
-			messageID: sent.messageID,
-			author: senderID,
-			type: "orderService"
+			type: "platformServices",
+			platform,
+			services,
+			page,
+			pageServices
 		});
 	}
 }
