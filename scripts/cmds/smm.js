@@ -48,6 +48,31 @@ function saveDeposits(data) {
 	fs.writeJsonSync(DEPOSITS_PATH, data, { spaces: 2 });
 }
 
+// ==================== GET ADMIN LIST (ROBUST) ====================
+function getAdminList() {
+	let admins = [];
+
+	// Method 1: global.GoatBot.config.adminBot
+	if (global.GoatBot?.config?.adminBot && Array.isArray(global.GoatBot.config.adminBot)) {
+		admins = admins.concat(global.GoatBot.config.adminBot);
+	}
+
+	// Method 2: From smmConfig.json
+	const config = loadConfig();
+	if (config.adminUID && Array.isArray(config.adminUID)) {
+		admins = admins.concat(config.adminUID);
+	}
+
+	// Method 3: global.config (some bots use this)
+	if (global.config?.adminBot && Array.isArray(global.config.adminBot)) {
+		admins = admins.concat(global.config.adminBot);
+	}
+
+	// Remove duplicates and empty
+	admins = [...new Set(admins.map(String).filter(Boolean))];
+	return admins;
+}
+
 // ==================== API ====================
 async function apiRequest(params) {
 	const config = loadConfig();
@@ -79,16 +104,30 @@ function calculatePrice(rate, quantity, markup) {
 	};
 }
 
-// ==================== USER BALANCE ====================
+// ==================== USER BALANCE (FIXED) ====================
 async function getUserBalance(usersData, uid) {
-	const data = await usersData.get(uid) || {};
-	return parseFloat(data.smmBalance || 0);
+	try {
+		const data = await usersData.get(String(uid));
+		if (!data) return 0;
+		// Support both direct and nested data
+		const bal = data.smmBalance !== undefined ? data.smmBalance : (data.data?.smmBalance || 0);
+		return parseFloat(bal) || 0;
+	} catch (e) {
+		console.log("getUserBalance error:", e.message);
+		return 0;
+	}
 }
 
 async function setUserBalance(usersData, uid, amount) {
-	const data = await usersData.get(uid) || {};
-	data.smmBalance = parseFloat(amount);
-	await usersData.set(uid, data);
+	try {
+		let data = await usersData.get(String(uid)) || {};
+		data.smmBalance = parseFloat(amount) || 0;
+		await usersData.set(String(uid), data);
+		return true;
+	} catch (e) {
+		console.log("setUserBalance error:", e.message);
+		return false;
+	}
 }
 
 async function addUserBalance(usersData, uid, amount) {
@@ -102,7 +141,7 @@ async function addUserBalance(usersData, uid, amount) {
 module.exports = {
 	config: {
 		name: "smm",
-		version: "3.1.0",
+		version: "3.2.0",
 		author: "Toxic Sabbir | Professional Trader",
 		countDown: 2,
 		role: 0,
@@ -377,8 +416,16 @@ module.exports = {
 				`⏳ Waiting for Admin approval...\nYou will be notified.`
 			);
 
-			// ===== FORWARD TO ADMIN INBOX =====
-			const adminList = global.GoatBot?.config?.adminBot || [];
+			// ===== FORWARD TO ADMIN INBOX (IMPROVED) =====
+			const adminList = getAdminList();
+			console.log("[SMM] Admin list for deposit:", adminList);
+
+			if (adminList.length === 0) {
+				console.log("[SMM] WARNING: No admin found in config.adminBot or smmConfig.adminUID");
+				await message.reply("⚠️ No admin configured. Please tell admin to set adminBot in config.json");
+				return;
+			}
+
 			const adminMsg =
 				`💳 𝗡𝗘𝗪 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗥𝗘𝗤𝗨𝗘𝗦𝗧\n\n` +
 				`Deposit ID: ${depositId}\n` +
@@ -394,16 +441,22 @@ module.exports = {
 			for (const admin of adminList) {
 				try {
 					let sentMsg;
-					if (photoUrl && global.utils?.getStreamFromURL) {
-						sentMsg = await api.sendMessage({
-							body: adminMsg,
-							attachment: await global.utils.getStreamFromURL(photoUrl)
-						}, admin);
+					if (photoUrl) {
+						try {
+							const stream = await global.utils.getStreamFromURL(photoUrl);
+							sentMsg = await api.sendMessage({
+								body: adminMsg,
+								attachment: stream
+							}, admin);
+						} catch (imgErr) {
+							// fallback without image
+							sentMsg = await api.sendMessage(adminMsg + `\n\nScreenshot: ${photoUrl}`, admin);
+						}
 					} else {
 						sentMsg = await api.sendMessage(adminMsg, admin);
 					}
 
-					// Set onReply so admin can just reply "approve" or "reject"
+					// Set onReply so admin can reply "approve" / "reject"
 					if (sentMsg && sentMsg.messageID) {
 						global.GoatBot.onReply.set(sentMsg.messageID, {
 							commandName: "smmadmin",
@@ -413,8 +466,9 @@ module.exports = {
 							depositId: depositId
 						});
 					}
+					console.log("[SMM] Deposit sent to admin:", admin);
 				} catch (e) {
-					console.log("Failed to send deposit to admin:", admin, e.message);
+					console.log("[SMM] Failed to send to admin", admin, ":", e.message);
 				}
 			}
 			return;
