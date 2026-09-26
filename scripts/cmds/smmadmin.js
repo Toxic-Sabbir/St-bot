@@ -14,7 +14,8 @@ function loadConfig() {
 			apiKey: "ba0cb1af8eaad9154e62b77358cf4131",
 			markupPercent: 30,
 			bdtRate: 130,
-			currency: "USD"
+			currency: "USD",
+			adminUID: []
 		}; 
 	}
 }
@@ -48,15 +49,28 @@ async function apiRequest(params) {
 	}
 }
 
+// ==================== BALANCE (SAME AS smm.js) ====================
 async function getUserBalance(usersData, uid) {
-	const data = await usersData.get(uid) || {};
-	return parseFloat(data.smmBalance || 0);
+	try {
+		const data = await usersData.get(String(uid));
+		if (!data) return 0;
+		const bal = data.smmBalance !== undefined ? data.smmBalance : (data.data?.smmBalance || 0);
+		return parseFloat(bal) || 0;
+	} catch (e) {
+		return 0;
+	}
 }
 
 async function setUserBalance(usersData, uid, amount) {
-	const data = await usersData.get(uid) || {};
-	data.smmBalance = parseFloat(amount);
-	await usersData.set(uid, data);
+	try {
+		let data = await usersData.get(String(uid)) || {};
+		data.smmBalance = parseFloat(amount) || 0;
+		await usersData.set(String(uid), data);
+		return true;
+	} catch (e) {
+		console.log("setUserBalance error:", e.message);
+		return false;
+	}
 }
 
 async function addUserBalance(usersData, uid, amount) {
@@ -73,16 +87,16 @@ function formatMoney(amount) {
 module.exports = {
 	config: {
 		name: "smmadmin",
-		version: "3.1.0",
+		version: "3.2.0",
 		author: "Toxic Sabbir | Professional Trader",
 		countDown: 2,
 		role: 2,
 		description: {
-			en: "SMM Admin Panel - Interactive Menu + Deposit Approve"
+			en: "SMM Admin Panel - Interactive + Deposit Approve"
 		},
 		category: "SMM PANEL",
 		guide: {
-			en: "{pn} → Open Admin Menu\n{pn} approve <ID>\n{pn} reject <ID>\n{pn} pending"
+			en: "{pn} → Open Admin Menu\n{pn} approve <ID>\n{pn} reject <ID>\n{pn} pending\n{pn} credit <uid> <amount>"
 		}
 	},
 
@@ -91,23 +105,19 @@ module.exports = {
 
 		const config = loadConfig();
 
-		// Direct commands still work
+		// Direct commands
 		if (args[0]) {
 			const cmd = args[0].toLowerCase();
 
-			// APPROVE
 			if (cmd === "approve") {
 				return handleApprove(api, event, args[1], message, usersData);
 			}
-			// REJECT
 			if (cmd === "reject") {
 				return handleReject(api, event, args[1], message, usersData);
 			}
-			// PENDING
 			if (cmd === "pending" || cmd === "deposits") {
 				return showPending(message);
 			}
-			// CREDIT
 			if (cmd === "credit" || cmd === "add") {
 				const uid = args[1];
 				const amount = parseFloat(args[2]);
@@ -118,7 +128,6 @@ module.exports = {
 				} catch (e) {}
 				return message.reply(`✅ Credited $${formatMoney(amount)} to ${uid}\nNew Balance: $${formatMoney(newBal)}`);
 			}
-			// DEBIT
 			if (cmd === "debit" || cmd === "remove") {
 				const uid = args[1];
 				const amount = parseFloat(args[2]);
@@ -131,7 +140,6 @@ module.exports = {
 				} catch (e) {}
 				return message.reply(`✅ Debited $${formatMoney(amount)} from ${uid}\nNew Balance: $${formatMoney(newBal)}`);
 			}
-			// SETBAL
 			if (cmd === "setbal") {
 				const uid = args[1];
 				const amount = parseFloat(args[2]);
@@ -139,13 +147,11 @@ module.exports = {
 				await setUserBalance(usersData, uid, amount);
 				return message.reply(`✅ Balance of ${uid} set to $${formatMoney(amount)}`);
 			}
-			// BAL
 			if (cmd === "bal" || cmd === "balance") {
 				const uid = args[1] || event.senderID;
 				const bal = await getUserBalance(usersData, uid);
 				return message.reply(`💰 User: ${uid}\nBalance: $${formatMoney(bal)}`);
 			}
-			// SETKEY
 			if (cmd === "setkey") {
 				const key = args[1];
 				if (!key) return message.reply("❌ Usage: smmadmin setkey <api_key>");
@@ -153,7 +159,6 @@ module.exports = {
 				saveConfig(config);
 				return message.reply("✅ API Key updated!");
 			}
-			// SETURL
 			if (cmd === "seturl") {
 				const url = args[1];
 				if (!url || !url.startsWith("http")) return message.reply("❌ Usage: smmadmin seturl https://...");
@@ -161,7 +166,6 @@ module.exports = {
 				saveConfig(config);
 				return message.reply(`✅ API URL updated`);
 			}
-			// SETMARKUP
 			if (cmd === "setmarkup") {
 				const percent = parseFloat(args[1]);
 				if (isNaN(percent) || percent < 0) return message.reply("❌ Usage: smmadmin setmarkup 30");
@@ -169,7 +173,6 @@ module.exports = {
 				saveConfig(config);
 				return message.reply(`✅ Markup set to ${percent}%`);
 			}
-			// SETBDTRATE
 			if (cmd === "setbdtrate") {
 				const rate = parseFloat(args[1]);
 				if (isNaN(rate) || rate <= 0) return message.reply("❌ Usage: smmadmin setbdtrate 130");
@@ -177,23 +180,32 @@ module.exports = {
 				saveConfig(config);
 				return message.reply(`✅ BDT Rate: 1 USD = ${rate} BDT`);
 			}
-			// CONFIG
+			if (cmd === "setadmin") {
+				// Quick way to add admin UID to smmConfig
+				const uid = args[1];
+				if (!uid) return message.reply("❌ Usage: smmadmin setadmin <uid>");
+				if (!config.adminUID) config.adminUID = [];
+				if (!config.adminUID.includes(uid)) {
+					config.adminUID.push(uid);
+					saveConfig(config);
+				}
+				return message.reply(`✅ Added ${uid} to SMM Admin list\nCurrent: ${config.adminUID.join(", ")}`);
+			}
 			if (cmd === "config") {
 				return message.reply(
 					`⚙️ 𝗦𝗠𝗠 𝗖𝗢𝗡𝗙𝗜𝗚\n\n` +
 					`API URL: ${config.apiUrl}\n` +
 					`API Key: ${config.apiKey ? config.apiKey.substring(0, 6) + "****" : "Not set"}\n` +
 					`Markup: ${config.markupPercent}%\n` +
-					`BDT Rate: 1 USD = ${config.bdtRate} BDT`
+					`BDT Rate: 1 USD = ${config.bdtRate} BDT\n` +
+					`SMM Admins: ${(config.adminUID || []).join(", ") || "None"}`
 				);
 			}
-			// PROVIDERBAL
 			if (cmd === "providerbal" || cmd === "pbal") {
 				const data = await apiRequest({ action: "balance" });
 				if (data.error) return message.reply(`❌ ${data.error}`);
 				return message.reply(`💰 Provider Balance: $${data.balance} ${data.currency || "USD"}`);
 			}
-			// STATS
 			if (cmd === "stats") {
 				const orders = loadOrders();
 				const deposits = loadDeposits();
@@ -219,7 +231,7 @@ module.exports = {
 			}
 		}
 
-		// ===== INTERACTIVE MENU (Reply 1 2 3) =====
+		// ===== INTERACTIVE MENU =====
 		const menu =
 			`🛠️ 𝗦𝗠𝗠 𝗔𝗗𝗠𝗜𝗡 𝗣𝗔𝗡𝗘𝗟\n\n` +
 			`1️⃣ Pending Deposits\n` +
@@ -245,7 +257,6 @@ module.exports = {
 	onReply: async function ({ api, event, Reply, message, usersData, role }) {
 		const { senderID, body, threadID, messageID } = event;
 
-		// Allow only the admin who received the message or bot admins
 		if (Reply.author && Reply.author !== senderID && role < 2) {
 			return api.sendMessage("❌ This is not for you!", threadID, messageID);
 		}
@@ -253,15 +264,15 @@ module.exports = {
 		const choice = (body || "").trim().toLowerCase();
 		const config = loadConfig();
 
-		// ========== DEPOSIT ACTION (Reply "approve" or "reject") ==========
+		// ========== DEPOSIT ACTION (reply approve / reject) ==========
 		if (Reply.type === "depositAction") {
 			const depId = Reply.depositId;
 
-			if (choice === "approve" || choice === "yes" || choice === "ok") {
+			if (choice === "approve" || choice === "yes" || choice === "ok" || choice === "a") {
 				global.GoatBot.onReply.delete(Reply.messageID);
 				return handleApprove(api, event, depId, message, usersData);
 			}
-			if (choice === "reject" || choice === "no") {
+			if (choice === "reject" || choice === "no" || choice === "r") {
 				global.GoatBot.onReply.delete(Reply.messageID);
 				return handleReject(api, event, depId, message, usersData);
 			}
@@ -321,7 +332,6 @@ module.exports = {
 			}
 			if (choice === "6") {
 				global.GoatBot.onReply.delete(Reply.messageID);
-				// reuse stats logic
 				const orders = loadOrders();
 				const deposits = loadDeposits();
 				let totalOrders = 0, totalRevenue = 0, totalProfit = 0, totalUsers = 0, totalDeposited = 0, pendingCount = 0;
@@ -351,21 +361,20 @@ module.exports = {
 					`API URL: ${config.apiUrl}\n` +
 					`API Key: ${config.apiKey ? config.apiKey.substring(0, 6) + "****" : "Not set"}\n` +
 					`Markup: ${config.markupPercent}%\n` +
-					`BDT Rate: 1 USD = ${config.bdtRate} BDT\n\n` +
-					`Change with:\nsmmadmin setkey ...\nsmmadmin setmarkup 30\nsmmadmin setbdtrate 130`
+					`BDT Rate: 1 USD = ${config.bdtRate} BDT\n` +
+					`SMM Admins: ${(config.adminUID || []).join(", ") || "None"}\n\n` +
+					`Commands:\nsmmadmin setkey ...\nsmmadmin setmarkup 30\nsmmadmin setadmin YOUR_UID`
 				);
 			}
 			return message.reply("❌ Invalid. Reply 1-7");
 		}
 
-		// ========== CREDIT USER ==========
+		// ========== CREDIT / DEBIT / CHECK ==========
 		if (Reply.type === "creditUser") {
 			const parts = body.trim().split(/\s+/);
 			const uid = parts[0];
 			const amount = parseFloat(parts[1]);
-			if (!uid || isNaN(amount) || amount <= 0) {
-				return message.reply("❌ Format: <uid> <amount>");
-			}
+			if (!uid || isNaN(amount) || amount <= 0) return message.reply("❌ Format: <uid> <amount>");
 			global.GoatBot.onReply.delete(Reply.messageID);
 			const newBal = await addUserBalance(usersData, uid, amount);
 			try {
@@ -374,14 +383,11 @@ module.exports = {
 			return message.reply(`✅ Credited $${formatMoney(amount)} to ${uid}\nNew Balance: $${formatMoney(newBal)}`);
 		}
 
-		// ========== DEBIT USER ==========
 		if (Reply.type === "debitUser") {
 			const parts = body.trim().split(/\s+/);
 			const uid = parts[0];
 			const amount = parseFloat(parts[1]);
-			if (!uid || isNaN(amount) || amount <= 0) {
-				return message.reply("❌ Format: <uid> <amount>");
-			}
+			if (!uid || isNaN(amount) || amount <= 0) return message.reply("❌ Format: <uid> <amount>");
 			global.GoatBot.onReply.delete(Reply.messageID);
 			const current = await getUserBalance(usersData, uid);
 			const newBal = Math.max(0, current - amount);
@@ -392,7 +398,6 @@ module.exports = {
 			return message.reply(`✅ Debited $${formatMoney(amount)} from ${uid}\nNew Balance: $${formatMoney(newBal)}`);
 		}
 
-		// ========== CHECK BAL ==========
 		if (Reply.type === "checkBal") {
 			const uid = body.trim();
 			if (!uid) return message.reply("❌ Send User ID");
@@ -403,7 +408,7 @@ module.exports = {
 	}
 };
 
-// ==================== HELPER FUNCTIONS ====================
+// ==================== APPROVE / REJECT ====================
 async function handleApprove(api, event, depId, message, usersData) {
 	if (!depId) return message.reply("❌ Deposit ID missing");
 
@@ -420,17 +425,19 @@ async function handleApprove(api, event, depId, message, usersData) {
 	dep.approvedAt = new Date().toISOString();
 	saveDeposits(deposits);
 
-	// Notify User with clear amount
+	// Clear notification to user with correct amount
 	try {
 		await api.sendMessage(
 			`✅ 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗔𝗣𝗣𝗥𝗢𝗩𝗘𝗗\n\n` +
 			`Deposit ID: ${depId}\n` +
 			`Amount Added: $${formatMoney(addAmount)} USD\n` +
 			`Your New Balance: $${formatMoney(newBal)}\n\n` +
-			`Thank you! You can now place orders using: smm`,
+			`Thank you! Now type: smm`,
 			dep.userID
 		);
-	} catch (e) {}
+	} catch (e) {
+		console.log("Failed to notify user:", e.message);
+	}
 
 	return message.reply(
 		`✅ 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗔𝗣𝗣𝗥𝗢𝗩𝗘𝗗\n\n` +
@@ -460,12 +467,12 @@ async function handleReject(api, event, depId, message, usersData) {
 			`Deposit ID: ${depId}\n` +
 			`Amount: ${dep.amount} ${dep.currency}\n` +
 			`TRX: ${dep.trx}\n\n` +
-			`Please contact admin if you have any issue.`,
+			`Please contact admin if needed.`,
 			dep.userID
 		);
 	} catch (e) {}
 
-	return message.reply(`✅ Deposit ${depId} rejected.\nUser has been notified.`);
+	return message.reply(`✅ Deposit ${depId} rejected.\nUser notified.`);
 }
 
 async function showPending(message) {
@@ -480,6 +487,6 @@ async function showPending(message) {
 		msg += `   ${d.amount} ${d.currency} → $${parseFloat(d.usdAmount).toFixed(4)}\n`;
 		msg += `   TRX: ${d.trx}\n\n`;
 	});
-	msg += `Approve: smmadmin approve <ID>\nOr just reply "approve" under the notification message.`;
+	msg += `Approve: smmadmin approve <ID>\nOr reply "approve" under the notification.`;
 	return message.reply(msg);
 }
