@@ -102,34 +102,34 @@ async function addUserBalance(usersData, uid, amount) {
 module.exports = {
 	config: {
 		name: "smm",
-		version: "3.0.0",
+		version: "3.1.0",
 		author: "Toxic Sabbir | Professional Trader",
 		countDown: 2,
 		role: 0,
 		description: {
-			en: "Full SMM Panel with Deposit System - Facebook, Instagram, YouTube, Twitter, TikTok"
+			en: "Full SMM Panel with Deposit System"
 		},
 		category: "SMM PANEL",
 		guide: {
-			en: "{pn} → Open Panel\n{pn} balance → Check balance\n{pn} deposit → Add funds\n{pn} status <orderID> → Check order\n{pn} myorders → Your orders"
+			en: "{pn} → Open Panel\n{pn} balance → Check balance\n{pn} deposit → Add funds\n{pn} status <orderID>\n{pn} myorders"
 		}
 	},
 
 	onStart: async function ({ api, event, args, message, usersData, role }) {
-		const { senderID, threadID } = event;
+		const { senderID } = event;
 		const config = loadConfig();
 		const bal = await getUserBalance(usersData, senderID);
 
-		// ===== BALANCE =====
+		// BALANCE
 		if (args[0] && ["balance", "bal", "wallet"].includes(args[0].toLowerCase())) {
 			return message.reply(
 				`💰 𝗬𝗢𝗨𝗥 𝗦𝗠𝗠 𝗕𝗔𝗟𝗔𝗡𝗖𝗘\n\n` +
-				`Balance: $${formatMoney(bal)} USD\n\n` +
+				`💵 Balance: $${formatMoney(bal)} USD\n\n` +
 				`To add funds type: smm deposit`
 			);
 		}
 
-		// ===== MY ORDERS =====
+		// MY ORDERS
 		if (args[0] && ["myorders", "orders", "history"].includes(args[0].toLowerCase())) {
 			const orders = loadOrders();
 			const userOrders = orders[senderID] || [];
@@ -143,7 +143,7 @@ module.exports = {
 			return message.reply(msg);
 		}
 
-		// ===== STATUS =====
+		// STATUS
 		if (args[0] && ["status", "st", "check"].includes(args[0].toLowerCase())) {
 			const orderID = args[1];
 			if (!orderID) return message.reply("❌ Usage: smm status <orderID>");
@@ -159,18 +159,18 @@ module.exports = {
 			);
 		}
 
-		// ===== DEPOSIT =====
+		// DEPOSIT
 		if (args[0] && ["deposit", "addfund", "recharge", "topup"].includes(args[0].toLowerCase())) {
 			return startDeposit(api, event, message);
 		}
 
-		// ===== MAIN MENU =====
+		// MAIN MENU
 		const platforms = Object.keys(config.platforms).filter(p => p !== "other");
 		let menu = `🚀 𝗦𝗠𝗠 𝗣𝗔𝗡𝗘𝗟\n\n`;
 		menu += `💰 Your Balance: $${formatMoney(bal)} USD\n\n`;
 
 		if (bal <= 0) {
-			menu += `⚠️ Your balance is $0\nYou cannot place orders.\nType: smm deposit\n\n`;
+			menu += `⚠️ Balance is $0 — You cannot place orders\nType: smm deposit\n\n`;
 		}
 
 		menu += `📌 Select Platform:\n\n`;
@@ -178,7 +178,7 @@ module.exports = {
 			const emoji = { facebook: "📘", instagram: "📸", youtube: "▶️", twitter: "🐦", tiktok: "🎵", telegram: "✈️", spotify: "🎧" }[p] || "🔹";
 			menu += `${i + 1}. ${emoji} ${p.toUpperCase()}\n`;
 		});
-		menu += `\n8️⃣ 💳 Deposit Funds\n9️⃣ 💰 Check Balance\n\n👉 Reply with number`;
+		menu += `\n8️⃣ 💳 Deposit Funds\n9️⃣ 💰 My Balance\n\n👉 Reply with number`;
 
 		const sent = await message.reply(menu);
 		if (sent) {
@@ -203,13 +203,11 @@ module.exports = {
 
 		// ========== MAIN MENU ==========
 		if (Reply.type === "mainMenu") {
-			// Deposit option
 			if (choice === "8" || choice === "deposit") {
 				global.GoatBot.onReply.delete(Reply.messageID);
 				try { await api.unsendMessage(Reply.messageID); } catch (e) {}
 				return startDeposit(api, event, message);
 			}
-			// Balance
 			if (choice === "9" || choice === "balance") {
 				const bal = await getUserBalance(usersData, senderID);
 				return message.reply(`💰 Your Balance: $${formatMoney(bal)} USD`);
@@ -217,24 +215,19 @@ module.exports = {
 
 			const index = parseInt(choice) - 1;
 			if (isNaN(index) || index < 0 || index >= Reply.platforms.length) {
-				return message.reply("❌ Invalid choice.");
+				return message.reply("❌ Invalid choice. Reply with correct number.");
 			}
 
-			// Check balance before allowing platform select
 			const bal = await getUserBalance(usersData, senderID);
 			if (bal <= 0) {
-				return message.reply(
-					`❌ Your balance is $0\n\n` +
-					`You cannot place any order.\n` +
-					`Please deposit first: smm deposit`
-				);
+				return message.reply(`❌ Your balance is $0\n\nPlease deposit first:\nsmm deposit`);
 			}
 
 			const platform = Reply.platforms[index];
 			global.GoatBot.onReply.delete(Reply.messageID);
 			try { await api.unsendMessage(Reply.messageID); } catch (e) {}
 
-			const loadingMsg = await message.reply(`⏳ Loading ${platform.toUpperCase()} services...`);
+			await message.reply(`⏳ Loading ${platform.toUpperCase()} services...`);
 			const services = await apiRequest({ action: "services" });
 
 			if (services.error || !Array.isArray(services)) {
@@ -255,14 +248,12 @@ module.exports = {
 			return showPlatformServices(api, event, message, platform, filtered, 1);
 		}
 
-		// ========== DEPOSIT CURRENCY SELECT ==========
+		// ========== DEPOSIT CURRENCY ==========
 		if (Reply.type === "depositCurrency") {
 			if (choice === "1" || choice === "usd") {
 				global.GoatBot.onReply.delete(Reply.messageID);
 				const sent = await message.reply(
-					`💵 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗨𝗦𝗗\n\n` +
-					`Minimum: $${config.minDepositUSD}\n\n` +
-					`Send the amount you want to deposit (example: 10):`
+					`💵 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗨𝗦𝗗\n\nMinimum: $${config.minDepositUSD}\n\nSend the amount (example: 10):`
 				);
 				if (sent) {
 					global.GoatBot.onReply.set(sent.messageID, {
@@ -279,10 +270,7 @@ module.exports = {
 			if (choice === "2" || choice === "bdt") {
 				global.GoatBot.onReply.delete(Reply.messageID);
 				const sent = await message.reply(
-					`🇧🇩 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗕𝗗𝗧\n\n` +
-					`Rate: 1 USD = ${config.bdtRate} BDT\n` +
-					`Minimum: ${config.minDepositBDT} BDT\n\n` +
-					`Send the amount in BDT (example: 1300):`
+					`🇧🇩 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗕𝗗𝗧\n\nRate: 1 USD = ${config.bdtRate} BDT\nMinimum: ${config.minDepositBDT} BDT\n\nSend amount in BDT (example: 1300):`
 				);
 				if (sent) {
 					global.GoatBot.onReply.set(sent.messageID, {
@@ -305,15 +293,14 @@ module.exports = {
 			const min = Reply.currency === "USD" ? config.minDepositUSD : config.minDepositBDT;
 
 			if (isNaN(amount) || amount < min) {
-				return message.reply(`❌ Minimum amount is ${min} ${Reply.currency}`);
+				return message.reply(`❌ Minimum is ${min} ${Reply.currency}`);
 			}
 
 			const usdAmount = Reply.currency === "USD" ? amount : (amount / Reply.rate);
 
 			global.GoatBot.onReply.delete(Reply.messageID);
 			const sent = await message.reply(
-				`✅ Amount: ${amount} ${Reply.currency} (≈ $${formatMoney(usdAmount)} USD)\n\n` +
-				`Now send your Transaction ID (TRX ID):`
+				`✅ Amount: ${amount} ${Reply.currency}\n≈ $${formatMoney(usdAmount)} USD\n\nNow send your Transaction ID (TRX ID):`
 			);
 			if (sent) {
 				global.GoatBot.onReply.set(sent.messageID, {
@@ -323,8 +310,7 @@ module.exports = {
 					type: "depositTRX",
 					currency: Reply.currency,
 					amount: amount,
-					usdAmount: usdAmount,
-					rate: Reply.rate
+					usdAmount: usdAmount
 				});
 			}
 			return;
@@ -339,9 +325,7 @@ module.exports = {
 
 			global.GoatBot.onReply.delete(Reply.messageID);
 			const sent = await message.reply(
-				`✅ TRX ID: ${trx}\n\n` +
-				`📸 Now send the Screenshot of payment\n` +
-				`(Send image only)`
+				`✅ TRX ID: ${trx}\n\n📸 Now send the Screenshot of payment\n(Send image only)`
 			);
 			if (sent) {
 				global.GoatBot.onReply.set(sent.messageID, {
@@ -358,17 +342,16 @@ module.exports = {
 			return;
 		}
 
-		// ========== DEPOSIT SCREENSHOT ==========
+		// ========== DEPOSIT SCREENSHOT + FORWARD TO ADMIN ==========
 		if (Reply.type === "depositScreenshot") {
-			if (!attachments || attachments.length === 0 || !attachments[0].type || attachments[0].type !== "photo") {
+			if (!attachments || attachments.length === 0 || attachments[0].type !== "photo") {
 				return message.reply("❌ Please send a screenshot (image).");
 			}
 
 			const photoUrl = attachments[0].url || attachments[0].previewUrl || null;
-
-			// Save pending deposit
 			const deposits = loadDeposits();
 			const depositId = `DEP${Date.now()}`;
+
 			deposits[depositId] = {
 				id: depositId,
 				userID: senderID,
@@ -384,21 +367,18 @@ module.exports = {
 
 			global.GoatBot.onReply.delete(Reply.messageID);
 
-			// Notify user
+			// Notify User
 			await message.reply(
 				`✅ 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗦𝗨𝗕𝗠𝗜𝗧𝗧𝗘𝗗\n\n` +
 				`Deposit ID: ${depositId}\n` +
 				`Amount: ${Reply.amount} ${Reply.currency}\n` +
-				`≈ $${formatMoney(Reply.usdAmount)} USD\n` +
+				`USD Value: $${formatMoney(Reply.usdAmount)}\n` +
 				`TRX: ${Reply.trx}\n\n` +
-				`⏳ Waiting for Admin approval...\n` +
-				`You will be notified.`
+				`⏳ Waiting for Admin approval...\nYou will be notified.`
 			);
 
-			// Send to all admins
-			const config = loadConfig();
-			const adminList = global.GoatBot?.config?.adminBot || config.adminUID || [];
-			
+			// ===== FORWARD TO ADMIN INBOX =====
+			const adminList = global.GoatBot?.config?.adminBot || [];
 			const adminMsg =
 				`💳 𝗡𝗘𝗪 𝗗𝗘𝗣𝗢𝗦𝗜𝗧 𝗥𝗘𝗤𝗨𝗘𝗦𝗧\n\n` +
 				`Deposit ID: ${depositId}\n` +
@@ -406,26 +386,37 @@ module.exports = {
 				`Amount: ${Reply.amount} ${Reply.currency}\n` +
 				`USD Value: $${formatMoney(Reply.usdAmount)}\n` +
 				`TRX ID: ${Reply.trx}\n\n` +
-				`👉 To Approve: smmadmin approve ${depositId}\n` +
-				`👉 To Reject: smmadmin reject ${depositId}`;
+				`👉 Reply this message with:\n` +
+				`approve\n` +
+				`or\n` +
+				`reject`;
 
-			// Try send with image if possible
 			for (const admin of adminList) {
 				try {
-					if (photoUrl) {
-						await api.sendMessage({
+					let sentMsg;
+					if (photoUrl && global.utils?.getStreamFromURL) {
+						sentMsg = await api.sendMessage({
 							body: adminMsg,
 							attachment: await global.utils.getStreamFromURL(photoUrl)
 						}, admin);
 					} else {
-						await api.sendMessage(adminMsg, admin);
+						sentMsg = await api.sendMessage(adminMsg, admin);
+					}
+
+					// Set onReply so admin can just reply "approve" or "reject"
+					if (sentMsg && sentMsg.messageID) {
+						global.GoatBot.onReply.set(sentMsg.messageID, {
+							commandName: "smmadmin",
+							messageID: sentMsg.messageID,
+							author: admin,
+							type: "depositAction",
+							depositId: depositId
+						});
 					}
 				} catch (e) {
-					try { await api.sendMessage(adminMsg, admin); } catch (e2) {}
+					console.log("Failed to send deposit to admin:", admin, e.message);
 				}
 			}
-
-			// Also send to current thread if admin is here
 			return;
 		}
 
@@ -494,21 +485,13 @@ module.exports = {
 
 			if (userBal < parseFloat(priceInfo.sell)) {
 				return message.reply(
-					`❌ Insufficient Balance!\n\n` +
-					`Required: $${priceInfo.sell}\n` +
-					`Your Balance: $${formatMoney(userBal)}\n\n` +
-					`Deposit first: smm deposit`
+					`❌ Insufficient Balance!\n\nRequired: $${priceInfo.sell}\nYour Balance: $${formatMoney(userBal)}\n\nDeposit: smm deposit`
 				);
 			}
 
 			global.GoatBot.onReply.delete(Reply.messageID);
 			const sent = await message.reply(
-				`🛒 Confirm Order\n\n` +
-				`Service: ${service.name}\n` +
-				`Qty: ${qty}\n` +
-				`Price: $${priceInfo.sell}\n` +
-				`Balance after: $${formatMoney(userBal - priceInfo.sell)}\n\n` +
-				`📎 Now send the Link:`
+				`🛒 Confirm Order\n\nService: ${service.name}\nQty: ${qty}\nPrice: $${priceInfo.sell}\nBalance after: $${formatMoney(userBal - priceInfo.sell)}\n\n📎 Now send the Link:`
 			);
 			if (sent) {
 				global.GoatBot.onReply.set(sent.messageID, {
@@ -524,7 +507,7 @@ module.exports = {
 			return;
 		}
 
-		// ========== ENTER LINK + PLACE ORDER ==========
+		// ========== PLACE ORDER ==========
 		if (Reply.type === "enterLink") {
 			const link = body.trim();
 			if (!link.startsWith("http")) {
@@ -539,7 +522,6 @@ module.exports = {
 				return message.reply("❌ Insufficient balance.");
 			}
 
-			// Place order
 			const orderRes = await apiRequest({
 				action: "add",
 				service: service.service,
@@ -553,10 +535,8 @@ module.exports = {
 				return message.reply(`❌ Order Failed: ${orderRes.error || "Unknown error"}`);
 			}
 
-			// Deduct user balance
 			const newBal = await addUserBalance(usersData, senderID, -parseFloat(price.sell));
 
-			// Save order
 			const orders = loadOrders();
 			if (!orders[senderID]) orders[senderID] = [];
 			orders[senderID].unshift({
